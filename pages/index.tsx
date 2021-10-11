@@ -83,11 +83,11 @@ const Home: NextPage = () => {
     })()
   }, [])
 
-  const processData = (startPartnersResult, endPartnersResult) => {
+  const processData = (startPartnersResult: any, endPartnersResult: any) => {
     let result = endPartnersResult.data.exchangePartners
-      .map((p1) => {
+      .map((p1: any) => {
         const startResultMatch = startPartnersResult.data.exchangePartners.filter(
-          (p2) => {
+          (p2: any) => {
             return p1.id === p2.id
           },
         )
@@ -101,14 +101,14 @@ const Home: NextPage = () => {
           fees: p1.usdFees - feesAtStart,
         }
       })
-      .filter((p) => p.fees > 0)
+      .filter((p: any) => p.fees > 0)
 
-    const totalFees = result.reduce((acc, p) => {
+    const totalFees = result.reduce((acc: Number, p: any) => {
       return acc + p.fees
     }, 0)
 
     result = result
-      .map((r) => {
+      .map((r: any) => {
         r.percentage = r.fees / totalFees
         r.payout = 10000 * r.percentage
         return r
