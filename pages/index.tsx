@@ -113,7 +113,7 @@ const Home: NextPage = () => {
         r.payout = 10000 * r.percentage
         return r
       })
-      .sort((a, b) => {
+      .sort((a: any, b: any) => {
         return b.percentage > a.percentage ? 1 : -1
       })
 
@@ -182,7 +182,7 @@ const Home: NextPage = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {partnersData.map((partner) => {
+            {partnersData.map((partner: any) => {
               return (
                 <Tr>
                   <Td fontWeight="bold">{partner.id}</Td>
