@@ -56,30 +56,31 @@ const Home: NextPage = () => {
   const [endBlockNumber, setEndBlockNumber] = useState(0)
   const [periodName, setPeriodName] = useState('')
 
-  useEffect(async () => {
-    const periodEnd = startOfMonth(new Date())
-    const endBlockResult = await blocksClient.query({
-      query: gql(blocksQuery(periodEnd.getTime() / 1000)),
-    })
-    const endBlock = endBlockResult.data.blocks[0].number
+  useEffect(() => {
+    ;(async () => {
+      const periodEnd = startOfMonth(new Date())
+      const endBlockResult = await blocksClient.query({
+        query: gql(blocksQuery(periodEnd.getTime() / 1000)),
+      })
+      const endBlock = endBlockResult.data.blocks[0].number
 
-    const periodStart = subMonths(periodEnd, 1)
-    const startBlockResult = await blocksClient.query({
-      query: gql(blocksQuery(periodStart.getTime() / 1000)),
-    })
-    const startBlock = startBlockResult.data.blocks[0].number
+      const periodStart = subMonths(periodEnd, 1)
+      const startBlockResult = await blocksClient.query({
+        query: gql(blocksQuery(periodStart.getTime() / 1000)),
+      })
+      const startBlock = startBlockResult.data.blocks[0].number
 
-    const startPartnersResult = await snxClient.query({
-      query: gql(snxQuery(startBlock)),
-    })
-    const endPartnersResult = await snxClient.query({
-      query: gql(snxQuery(endBlock)),
-    })
-
-    setPeriodName(format(periodStart, 'MMMM y'))
-    setStartBlockNumber(startBlock)
-    setEndBlockNumber(endBlock)
-    processData(startPartnersResult, endPartnersResult)
+      const startPartnersResult = await snxClient.query({
+        query: gql(snxQuery(startBlock)),
+      })
+      const endPartnersResult = await snxClient.query({
+        query: gql(snxQuery(endBlock)),
+      })
+      setPeriodName(format(periodStart, 'MMMM y'))
+      setStartBlockNumber(startBlock)
+      setEndBlockNumber(endBlock)
+      processData(startPartnersResult, endPartnersResult)
+    })()
   }, [])
 
   const processData = (startPartnersResult, endPartnersResult) => {
