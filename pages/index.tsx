@@ -136,9 +136,9 @@ const Home: NextPage = () => {
   const queueActions = async () => {
     setLoading(true)
 
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
-    let signer = provider.getSigner()
-    signer.address = await signer.getAddress()
+    const provider = new ethers.providers.Web3Provider((window as any).ethereum)
+    let signer = (provider.getSigner();
+    (signer as any).address = await signer.getAddress())
     let network = await provider.getNetwork()
     const safeBatchSubmitter = new SafeBatchSubmitter({
       network: network.name,
