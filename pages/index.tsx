@@ -137,7 +137,7 @@ const Home: NextPage = () => {
     setLoading(true)
 
     const provider = new ethers.providers.Web3Provider((window as any).ethereum)
-    let signer = (provider.getSigner();
+    let signer = provider.getSigner();
     (signer as any).address = await signer.getAddress())
     let network = await provider.getNetwork()
     const safeBatchSubmitter = new SafeBatchSubmitter({
