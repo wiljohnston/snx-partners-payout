@@ -217,29 +217,38 @@ const Home: NextPage = () => {
       ) {
         newStatus = 'queued'
       }
-    } finally {
-      // Check if there's past transaction
-      const endpoint =
-        'https://api-rinkeby.etherscan.io/api?module=account&action=tokentx&contractaddress=0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c&address=0xee8C74634fc1590Ab7510a655F53159524ed0aC5&page=1&offset=10000&sort=desc'
-      //const endpoint = `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc`
+    } catch {}
 
-      const response = await fetch(endpoint)
-      const data = await response.json()
-      if (
-        data.result.some((r) => {
-          return partnersData.some((p) => {
-            return (
-              r.value.toString() ==
-                ethers.utils.parseEther(p.payout.toString()).toString() &&
-              Object.values(PARTNER_ADDRESSES).includes(
-                ethers.utils.getAddress(r.to),
-              )
+    // Check if there's past transaction
+    const endpoint =
+      'https://api-rinkeby.etherscan.io/api?module=account&action=tokentx&contractaddress=0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c&address=0xee8C74634fc1590Ab7510a655F53159524ed0aC5&page=1&offset=10000&sort=desc'
+    //const endpoint = `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc`
+
+    const response = await fetch(endpoint)
+    const data = await response.json()
+    if (
+      data.result.some((r) => {
+        return partnersData.some((p) => {
+          console.log(
+            r.value.toString() ==
+              ethers.utils.parseEther(p.payout.toString()).toString(),
+          )
+          console.log(
+            Object.values(PARTNER_ADDRESSES).includes(
+              ethers.utils.getAddress(r.to),
+            ),
+          )
+          return (
+            r.value.toString() ==
+              ethers.utils.parseEther(p.payout.toString()).toString() &&
+            Object.values(PARTNER_ADDRESSES).includes(
+              ethers.utils.getAddress(r.to),
             )
-          })
+          )
         })
-      ) {
-        newStatus = 'executed'
-      }
+      })
+    ) {
+      newStatus = 'executed'
     }
 
     setStatus(newStatus)
@@ -277,7 +286,7 @@ const Home: NextPage = () => {
               {periodName}
             </Text>
             <Text size="xs">
-              <Text d="inline" fontWeight="medium">
+              <Text as="span" d="inline" fontWeight="medium">
                 Blocks:{' '}
               </Text>
               <Link
