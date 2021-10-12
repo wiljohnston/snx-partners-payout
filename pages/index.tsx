@@ -208,7 +208,7 @@ const Home: NextPage = () => {
       )
       if (
         pendingTxns.results.some((t) => {
-          const a = t.dataDecoded.parameters[0].valueDecoded.map(
+          const a = (t.dataDecoded as any).parameters[0].valueDecoded.map(
             (v) => v.dataDecoded.parameters[0].value,
           )
           const b = Object.values(PARTNER_ADDRESSES)
