@@ -14,10 +14,23 @@ import {
   Link,
   Button,
   Box,
+  useToast,
 } from '@chakra-ui/react'
 import { ArrowForwardIcon, TimeIcon } from '@chakra-ui/icons'
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
 import { format, startOfMonth, subMonths } from 'date-fns'
+import { ethers } from 'ethers'
+import SafeBatchSubmitter from '../lib/SafeBatchSubmitter.js'
+
+const GNOSIS_SAFE_ADDRESS = '0xee8C74634fc1590Ab7510a655F53159524ed0aC5'
+const SNX_TOKEN_ADDRESS = '0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c'
+const PARTNER_ADDRESSES = {
+  CURVE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
+  DHEDGE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
+  '1INCH': '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
+  ENZYME: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
+  SADDLE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
+}
 
 const snxQuery = (blockNumber: Number) => `
 {
@@ -37,7 +50,7 @@ const snxClient = new ApolloClient({
 
 const blocksQuery = (timestamp: Number) => `
 {
-  blocks(first: 1, orderBy: timestamp, orderDirection: asc, where: {timestamp_gt: "${timestamp}"}) {
+  blocks(first: 1, orderBy: timestamp, orderDirection: asc, where: {timestamp_gte: "${timestamp}"}) {
     id
     number
     timestamp
@@ -55,18 +68,22 @@ const Home: NextPage = () => {
   const [startBlockNumber, setStartBlockNumber] = useState(0)
   const [endBlockNumber, setEndBlockNumber] = useState(0)
   const [periodName, setPeriodName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     ;(async () => {
+      const tz_offset = new Date().getTimezoneOffset() * 60 * 1000
+
       const periodEnd = startOfMonth(new Date())
       const endBlockResult = await blocksClient.query({
-        query: gql(blocksQuery(periodEnd.getTime() / 1000)),
+        query: gql(blocksQuery((periodEnd.getTime() - tz_offset) / 1000)),
       })
       const endBlock = endBlockResult.data.blocks[0].number
 
       const periodStart = subMonths(periodEnd, 1)
       const startBlockResult = await blocksClient.query({
-        query: gql(blocksQuery(periodStart.getTime() / 1000)),
+        query: gql(blocksQuery((periodStart.getTime() - tz_offset) / 1000)),
       })
       const startBlock = startBlockResult.data.blocks[0].number
 
@@ -84,24 +101,20 @@ const Home: NextPage = () => {
   }, [])
 
   const processData = (startPartnersResult: any, endPartnersResult: any) => {
-    let result = endPartnersResult.data.exchangePartners
-      .map((p1: any) => {
-        const startResultMatch = startPartnersResult.data.exchangePartners.filter(
-          (p2: any) => {
-            return p1.id === p2.id
-          },
-        )
-
-        const feesAtStart = startResultMatch.length
-          ? startResultMatch[0].usdFees
-          : 0
-
-        return {
-          id: p1.id,
-          fees: p1.usdFees - feesAtStart,
-        }
-      })
-      .filter((p: any) => p.fees > 0)
+    let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
+      const periodStartData = startPartnersResult.data.exchangePartners.filter(
+        (p) => p.id == id,
+      )[0]
+      const periodEndData = endPartnersResult.data.exchangePartners.filter(
+        (p) => p.id == id,
+      )[0]
+      return {
+        id: id,
+        fees:
+          periodEndData.usdFees -
+          (periodStartData ? periodStartData.usdFees : 0),
+      }
+    })
 
     const totalFees = result.reduce((acc: Number, p: any) => {
       return acc + p.fees
@@ -120,8 +133,56 @@ const Home: NextPage = () => {
     setPartnersData(result)
   }
 
-  const queueActions = () => {
-    alert('Coming soon')
+  const queueActions = async () => {
+    setLoading(true)
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    let signer = provider.getSigner()
+    signer.address = await signer.getAddress()
+    let network = await provider.getNetwork()
+    const safeBatchSubmitter = new SafeBatchSubmitter({
+      network: network.name,
+      signer,
+      safeAddress: GNOSIS_SAFE_ADDRESS,
+    })
+    await safeBatchSubmitter.init()
+    const erc20Interface = new ethers.utils.Interface([
+      'function transfer(address recipient, uint256 amount)',
+    ])
+
+    for (let index = 0; index < partnersData.length; index++) {
+      const partner = partnersData[index]
+      if (partner.payout > 0) {
+        const data = erc20Interface.encodeFunctionData('transfer', [
+          PARTNER_ADDRESSES[partner.id],
+          ethers.utils.parseEther(partner.payout.toString()),
+        ])
+        await safeBatchSubmitter.appendTransaction({
+          to: SNX_TOKEN_ADDRESS,
+          data,
+          force: false,
+        })
+      }
+    }
+
+    try {
+      const submitResult = await safeBatchSubmitter.submit()
+      toast({
+        title: 'Transactions Queued',
+        description: `You’ve successfully queued ${submitResult.transactions.length} transactions in the Gnosis Safe.`,
+        status: 'success',
+        isClosable: true,
+      })
+    } catch {
+      toast({
+        title: 'Error',
+        description: `Something went wrong when attempting to queue these transactions.`,
+        status: 'error',
+        isClosable: true,
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -130,7 +191,7 @@ const Home: NextPage = () => {
         <title>Exchange Partners Payout Tool</title>
       </Head>
       <Container>
-        <Heading as="h1" size="xl" mt={10} mb={6}>
+        <Heading as="h1" size="xl" mt={10} mb={6} textAlign="center">
           Exchange Partners Payout Tool
         </Heading>
         <Box
@@ -184,15 +245,27 @@ const Home: NextPage = () => {
           <Tbody>
             {partnersData.map((partner: any) => {
               return (
-                <Tr>
+                <Tr key={partner.id}>
                   <Td fontWeight="bold">{partner.id}</Td>
                   <Td>
-                    {partner.fees}
-                    <Text d="block" fontSize="xs" fontWeight="semibold">
+                    {partner.fees.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })}
+                    <Text
+                      d="block"
+                      fontSize="xs"
+                      opacity={0.66}
+                      fontWeight="semibold"
+                    >
                       {partner.percentage * 100}%
                     </Text>
                   </Td>
-                  <Td isNumeric>{partner.payout}</Td>
+                  <Td isNumeric>
+                    {partner.payout.toLocaleString('en-US', {
+                      maximumFractionDigits: 20,
+                    })}
+                  </Td>
                 </Tr>
               )
             })}
@@ -207,6 +280,7 @@ const Home: NextPage = () => {
           onClick={queueActions}
           mb={8}
           size="lg"
+          isLoading={loading}
         >
           Queue Payouts
         </Button>
