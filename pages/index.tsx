@@ -15,8 +15,9 @@ import {
   Button,
   Box,
   useToast,
+  Grid,
 } from '@chakra-ui/react'
-import { ArrowForwardIcon, TimeIcon } from '@chakra-ui/icons'
+import { ArrowForwardIcon, TimeIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { ethers } from 'ethers'
@@ -68,6 +69,7 @@ const Home: NextPage = () => {
   const [startBlockNumber, setStartBlockNumber] = useState(0)
   const [endBlockNumber, setEndBlockNumber] = useState(0)
   const [periodName, setPeriodName] = useState('')
+  const [status, setStatus] = useState('none')
   const [loading, setLoading] = useState(false)
   const toast = useToast()
 
@@ -97,6 +99,7 @@ const Home: NextPage = () => {
       setStartBlockNumber(startBlock)
       setEndBlockNumber(endBlock)
       processData(startPartnersResult, endPartnersResult)
+      checkPaymentStatus()
     })()
   }, [])
 
@@ -185,6 +188,63 @@ const Home: NextPage = () => {
     }
   }
 
+  const checkPaymentStatus = async () => {
+    const provider = new ethers.providers.Web3Provider((window as any).ethereum)
+    let signer = provider.getSigner()
+    ;(signer as any).address = await signer.getAddress()
+    let network = await provider.getNetwork()
+    const safeBatchSubmitter = new SafeBatchSubmitter({
+      network: network.name,
+      signer,
+      safeAddress: GNOSIS_SAFE_ADDRESS,
+    })
+    await safeBatchSubmitter.init()
+
+    let newStatus = 'none'
+    try {
+      // Check if there's a queued transaction with the same addresses to payout.
+      const pendingTxns = await safeBatchSubmitter.service.getPendingTransactions(
+        GNOSIS_SAFE_ADDRESS,
+      )
+      if (
+        pendingTxns.results.some((t) => {
+          const a = t.dataDecoded.parameters[0].valueDecoded.map(
+            (v) => v.dataDecoded.parameters[0].value,
+          )
+          const b = Object.values(PARTNER_ADDRESSES)
+          return a.sort().join(',') === b.sort().join(',')
+        })
+      ) {
+        newStatus = 'queued'
+      }
+    } finally {
+      // Check if there's past transaction
+      const endpoint =
+        'https://api-rinkeby.etherscan.io/api?module=account&action=tokentx&contractaddress=0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c&address=0xee8C74634fc1590Ab7510a655F53159524ed0aC5&page=1&offset=10000&sort=desc'
+      //const endpoint = `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc`
+
+      const response = await fetch(endpoint)
+      const data = await response.json()
+      if (
+        data.result.some((r) => {
+          return partnersData.some((p) => {
+            return (
+              r.value.toString() ==
+                ethers.utils.parseEther(p.payout.toString()).toString() &&
+              Object.values(PARTNER_ADDRESSES).includes(
+                ethers.utils.getAddress(r.to),
+              )
+            )
+          })
+        })
+      ) {
+        newStatus = 'executed'
+      }
+    }
+
+    setStatus(newStatus)
+  }
+
   return (
     <div>
       <Head>
@@ -194,47 +254,83 @@ const Home: NextPage = () => {
         <Heading as="h1" size="xl" mt={10} mb={6} textAlign="center">
           Exchange Partners Payout Tool
         </Heading>
-        <Box
-          d="inline-block"
-          borderRadius="md"
-          background="gray.900"
-          py={5}
-          px={6}
-          mb={4}
-        >
-          <Heading
-            textTransform="uppercase"
-            letterSpacing={1}
-            fontSize="sm"
-            fontWeight="medium"
-            mb={1}
+        <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+          <Box
+            d="inline-block"
+            borderRadius="md"
+            background="gray.900"
+            py={5}
+            px={6}
+            mb={4}
           >
-            <TimeIcon transform="translateY(-1px)" mr={1.5} />
-            Payout Period
-          </Heading>
-          <Text fontSize="xl" fontWeight="medium">
-            {periodName}
-          </Text>
-          <Text size="xs">
-            <Text d="inline" fontWeight="medium">
-              Blocks:{' '}
+            <Heading
+              textTransform="uppercase"
+              letterSpacing={1}
+              fontSize="sm"
+              fontWeight="medium"
+              mb={1}
+            >
+              <TimeIcon transform="translateY(-1px)" mr={1.5} />
+              Payout Period
+            </Heading>
+            <Text fontSize="xl" fontWeight="medium">
+              {periodName}
             </Text>
-            <Link
-              href={`https://etherscan.io/block/${startBlockNumber}`}
-              isExternal
+            <Text size="xs">
+              <Text d="inline" fontWeight="medium">
+                Blocks:{' '}
+              </Text>
+              <Link
+                href={`https://etherscan.io/block/${startBlockNumber}`}
+                isExternal
+              >
+                {startBlockNumber}
+              </Link>{' '}
+              <ArrowForwardIcon transform="translateY(-1.5px)" />{' '}
+              <Link
+                href={`https://etherscan.io/block/${endBlockNumber}`}
+                isExternal
+              >
+                {endBlockNumber}
+              </Link>
+            </Text>
+          </Box>
+          <Box
+            d="inline-block"
+            borderRadius="md"
+            background="gray.900"
+            py={5}
+            px={6}
+            mb={4}
+          >
+            <Heading
+              textTransform="uppercase"
+              letterSpacing={1}
+              fontSize="sm"
+              fontWeight="medium"
+              mb={2}
             >
-              {startBlockNumber}
-            </Link>{' '}
-            <ArrowForwardIcon transform="translateY(-1.5px)" />{' '}
-            <Link
-              href={`https://etherscan.io/block/${endBlockNumber}`}
-              isExternal
-            >
-              {endBlockNumber}
-            </Link>
-          </Text>
-        </Box>
-        <Table variant="simple" mb={6}>
+              <InfoOutlineIcon transform="translateY(-1px)" mr={1.5} />
+              Payout Status
+            </Heading>
+            {status == 'none' && (
+              <Text>
+                Based on past data, this payout probably hasn’t occured.
+              </Text>
+            )}
+            {status == 'queued' && (
+              <Text>
+                Similar transactions are present in the Gnosis Safe queue.
+              </Text>
+            )}
+            {status == 'executed' && (
+              <Text>
+                Similar transactions have been executed by the Gnosis Safe.
+              </Text>
+            )}
+          </Box>
+        </Grid>
+        <Table variant="simple" mb={8}>
           <Thead>
             <Tr>
               <Th>Partner</Th>
