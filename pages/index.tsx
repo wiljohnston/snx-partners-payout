@@ -103,10 +103,10 @@ const Home: NextPage = () => {
   const processData = (startPartnersResult: any, endPartnersResult: any) => {
     let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
       const periodStartData = startPartnersResult.data.exchangePartners.filter(
-        (p) => p.id == id,
+        (p: any) => p.id == id,
       )[0]
       const periodEndData = endPartnersResult.data.exchangePartners.filter(
-        (p) => p.id == id,
+        (p: any) => p.id == id,
       )[0]
       return {
         id: id,
@@ -116,7 +116,7 @@ const Home: NextPage = () => {
       }
     })
 
-    const totalFees = result.reduce((acc: Number, p: any) => {
+    const totalFees = result.reduce((acc: number, p: any) => {
       return acc + p.fees
     }, 0)
 
