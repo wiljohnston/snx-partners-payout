@@ -1,39 +1,25 @@
 import { useEffect, useState } from 'react'
-import type { NextPage } from 'next'
 import Head from 'next/head'
-import {
-  Container,
-  Heading,
-  Text,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Link,
-  Button,
-  Box,
-  useToast,
-  Grid,
-} from '@chakra-ui/react'
-import { ArrowForwardIcon, TimeIcon, InfoOutlineIcon } from '@chakra-ui/icons'
+
+import { Container, Heading, Button, useToast, Grid } from '@chakra-ui/react'
+
+import PartnersTable from '../components/PartnersTable'
+import Period from '../components/Period'
+import Status from '../components/Status'
+
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { ethers } from 'ethers'
 import SafeBatchSubmitter from '../lib/SafeBatchSubmitter.js'
 
-const GNOSIS_SAFE_ADDRESS = '0xee8C74634fc1590Ab7510a655F53159524ed0aC5'
-const SNX_TOKEN_ADDRESS = '0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c'
-const PARTNER_ADDRESSES = {
-  CURVE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
-  DHEDGE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
-  '1INCH': '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
-  ENZYME: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
-  SADDLE: '0x07Aeeb7E544A070a2553e142828fb30c214a1F86',
-}
+import {
+  GNOSIS_SAFE_ADDRESS,
+  SNX_TOKEN_ADDRESS,
+  PARTNER_ADDRESSES,
+  SNX_TOTAL_DISTRIBUTION
+} from '../config.js'
 
-const snxQuery = (blockNumber: Number) => `
+const snxQuery = (blockNumber) => `
 {
   exchangePartners (block: {number: ${blockNumber}}) {
     id
@@ -49,7 +35,7 @@ const snxClient = new ApolloClient({
   cache: new InMemoryCache(),
 })
 
-const blocksQuery = (timestamp: Number) => `
+const blocksQuery = (timestamp) => `
 {
   blocks(first: 1, orderBy: timestamp, orderDirection: asc, where: {timestamp_gte: "${timestamp}"}) {
     id
@@ -64,7 +50,21 @@ const blocksClient = new ApolloClient({
   cache: new InMemoryCache(),
 })
 
-const Home: NextPage = () => {
+async function generateSafeBatchSubmitter(){
+  const provider = new ethers.providers.Web3Provider(window.ethereum)
+  let signer = provider.getSigner()
+  signer.address = await signer.getAddress()
+  let network = await provider.getNetwork()
+  const safeBatchSubmitter = new SafeBatchSubmitter({
+    network: network.name,
+    signer,
+    safeAddress: GNOSIS_SAFE_ADDRESS,
+  })
+  await safeBatchSubmitter.init()
+  return safeBatchSubmitter
+}
+
+const Home = () => {
   const [partnersData, setPartnersData] = useState([])
   const [startBlockNumber, setStartBlockNumber] = useState(0)
   const [endBlockNumber, setEndBlockNumber] = useState(0)
@@ -75,6 +75,7 @@ const Home: NextPage = () => {
 
   useEffect(() => {
     ;(async () => {
+      // Get block numbers corresponding to the start of this month and last month
       const tz_offset = new Date().getTimezoneOffset() * 60 * 1000
 
       const periodEnd = startOfMonth(new Date())
@@ -89,27 +90,31 @@ const Home: NextPage = () => {
       })
       const startBlock = startBlockResult.data.blocks[0].number
 
+      // Query partners data at these blocks
       const startPartnersResult = await snxClient.query({
         query: gql(snxQuery(startBlock)),
       })
       const endPartnersResult = await snxClient.query({
         query: gql(snxQuery(endBlock)),
       })
+
+      // Set state accordingly
       setPeriodName(format(periodStart, 'MMMM y'))
       setStartBlockNumber(startBlock)
       setEndBlockNumber(endBlock)
-      processData(startPartnersResult, endPartnersResult)
       checkPaymentStatus()
+      processData(startPartnersResult, endPartnersResult)
     })()
   }, [])
 
-  const processData = (startPartnersResult: any, endPartnersResult: any) => {
+  const processData = (startPartnersResult, endPartnersResult) => {
+    // Calculate fees for the period by taking the difference between the totals at start and end
     let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
       const periodStartData = startPartnersResult.data.exchangePartners.filter(
-        (p: any) => p.id == id,
+        (p) => p.id == id,
       )[0]
       const periodEndData = endPartnersResult.data.exchangePartners.filter(
-        (p: any) => p.id == id,
+        (p) => p.id == id,
       )[0]
       return {
         id: id,
@@ -119,17 +124,17 @@ const Home: NextPage = () => {
       }
     })
 
-    const totalFees = result.reduce((acc: number, p: any) => {
+    // Calculate payout based on proportion of fees generated in the period
+    const totalFees = result.reduce((acc, p) => {
       return acc + p.fees
     }, 0)
-
     result = result
-      .map((r: any) => {
+      .map((r) => {
         r.percentage = r.fees / totalFees
-        r.payout = 10000 * r.percentage
+        r.payout = SNX_TOTAL_DISTRIBUTION * r.percentage
         return r
       })
-      .sort((a: any, b: any) => {
+      .sort((a, b) => {
         return b.percentage > a.percentage ? 1 : -1
       })
 
@@ -139,16 +144,9 @@ const Home: NextPage = () => {
   const queueActions = async () => {
     setLoading(true)
 
-    const provider = new ethers.providers.Web3Provider((window as any).ethereum)
-    let signer = provider.getSigner()
-    ;(signer as any).address = await signer.getAddress()
-    let network = await provider.getNetwork()
-    const safeBatchSubmitter = new SafeBatchSubmitter({
-      network: network.name,
-      signer,
-      safeAddress: GNOSIS_SAFE_ADDRESS,
-    })
-    await safeBatchSubmitter.init()
+    // TODO: Confirm Safe has SNX_TOTAL_DISTRIBUTION available
+
+    const safeBatchSubmitter = await generateSafeBatchSubmitter();
     const erc20Interface = new ethers.utils.Interface([
       'function transfer(address recipient, uint256 amount)',
     ])
@@ -172,7 +170,7 @@ const Home: NextPage = () => {
       const submitResult = await safeBatchSubmitter.submit()
       toast({
         title: 'Transactions Queued',
-        description: `You’ve successfully queued ${submitResult.transactions.length} transactions in the Gnosis Safe.`,
+        description: submitResult.transactions.length ? `You’ve successfully queued ${submitResult.transactions.length} transactions in the Gnosis Safe.` : 'New transactions weren’t added. They are likely already awaiting execution in the Gnosis Safe.',
         status: 'success',
         isClosable: true,
       })
@@ -185,20 +183,13 @@ const Home: NextPage = () => {
       })
     } finally {
       setLoading(false)
+      checkPaymentStatus()
     }
   }
 
   const checkPaymentStatus = async () => {
-    const provider = new ethers.providers.Web3Provider((window as any).ethereum)
-    let signer = provider.getSigner()
-    ;(signer as any).address = await signer.getAddress()
-    let network = await provider.getNetwork()
-    const safeBatchSubmitter = new SafeBatchSubmitter({
-      network: network.name,
-      signer,
-      safeAddress: GNOSIS_SAFE_ADDRESS,
-    })
-    await safeBatchSubmitter.init()
+    // TODO: Clean this up, add etherscan api key, make more reliable
+    const safeBatchSubmitter = await generateSafeBatchSubmitter();
 
     let newStatus = 'none'
     try {
@@ -208,7 +199,7 @@ const Home: NextPage = () => {
       )
       if (
         pendingTxns.results.some((t) => {
-          const a = (t.dataDecoded as any).parameters[0].valueDecoded.map(
+          const a = t.dataDecoded.parameters[0].valueDecoded.map(
             (v) => v.dataDecoded.parameters[0].value,
           )
           const b = Object.values(PARTNER_ADDRESSES)
@@ -229,15 +220,6 @@ const Home: NextPage = () => {
     if (
       data.result.some((r) => {
         return partnersData.some((p) => {
-          console.log(
-            r.value.toString() ==
-              ethers.utils.parseEther(p.payout.toString()).toString(),
-          )
-          console.log(
-            Object.values(PARTNER_ADDRESSES).includes(
-              ethers.utils.getAddress(r.to),
-            ),
-          )
           return (
             r.value.toString() ==
               ethers.utils.parseEther(p.payout.toString()).toString() &&
@@ -264,119 +246,14 @@ const Home: NextPage = () => {
           Exchange Partners Payout Tool
         </Heading>
         <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-          <Box
-            d="inline-block"
-            borderRadius="md"
-            background="gray.900"
-            py={5}
-            px={6}
-            mb={4}
-          >
-            <Heading
-              textTransform="uppercase"
-              letterSpacing={1}
-              fontSize="sm"
-              fontWeight="medium"
-              mb={1}
-            >
-              <TimeIcon transform="translateY(-1px)" mr={1.5} />
-              Payout Period
-            </Heading>
-            <Text fontSize="xl" fontWeight="medium">
-              {periodName}
-            </Text>
-            <Text size="xs">
-              <Text as="span" d="inline" fontWeight="medium">
-                Blocks:{' '}
-              </Text>
-              <Link
-                href={`https://etherscan.io/block/${startBlockNumber}`}
-                isExternal
-              >
-                {startBlockNumber}
-              </Link>{' '}
-              <ArrowForwardIcon transform="translateY(-1.5px)" />{' '}
-              <Link
-                href={`https://etherscan.io/block/${endBlockNumber}`}
-                isExternal
-              >
-                {endBlockNumber}
-              </Link>
-            </Text>
-          </Box>
-          <Box
-            d="inline-block"
-            borderRadius="md"
-            background="gray.900"
-            py={5}
-            px={6}
-            mb={4}
-          >
-            <Heading
-              textTransform="uppercase"
-              letterSpacing={1}
-              fontSize="sm"
-              fontWeight="medium"
-              mb={2}
-            >
-              <InfoOutlineIcon transform="translateY(-1px)" mr={1.5} />
-              Payout Status
-            </Heading>
-            {status == 'none' && (
-              <Text>
-                Based on past data, this payout probably hasn’t occured.
-              </Text>
-            )}
-            {status == 'queued' && (
-              <Text>
-                Similar transactions are present in the Gnosis Safe queue.
-              </Text>
-            )}
-            {status == 'executed' && (
-              <Text>
-                Similar transactions have been executed by the Gnosis Safe.
-              </Text>
-            )}
-          </Box>
+          <Period
+            periodName={periodName}
+            startBlockNumber={startBlockNumber}
+            endBlockNumber={endBlockNumber}
+          />
+          <Status status={status} />
         </Grid>
-        <Table variant="simple" mb={8}>
-          <Thead>
-            <Tr>
-              <Th>Partner</Th>
-              <Th>Fees Generated (USD)</Th>
-              <Th isNumeric>Payout (SNX)</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {partnersData.map((partner: any) => {
-              return (
-                <Tr key={partner.id}>
-                  <Td fontWeight="bold">{partner.id}</Td>
-                  <Td>
-                    {partner.fees.toLocaleString('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                    })}
-                    <Text
-                      d="block"
-                      fontSize="xs"
-                      opacity={0.66}
-                      fontWeight="semibold"
-                    >
-                      {partner.percentage * 100}%
-                    </Text>
-                  </Td>
-                  <Td isNumeric>
-                    {partner.payout.toLocaleString('en-US', {
-                      maximumFractionDigits: 20,
-                    })}
-                  </Td>
-                </Tr>
-              )
-            })}
-          </Tbody>
-        </Table>
-
+        <PartnersTable partnersData={partnersData} />
         <Button
           background="#00d1ff"
           width="100%"
