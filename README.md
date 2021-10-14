@@ -4,6 +4,8 @@
 
 Update `/config.js`.
 
+Add an `NEXT_PUBLIC_ETHERSCAN_API_KEY` environmental variable. For local development, add to `.env.local`. (This is optional, but will make the Payout Status widget more accurate and reliable.)
+
 Then, run the development server:
 
 ```bash

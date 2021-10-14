@@ -102,8 +102,8 @@ const Home = () => {
       setPeriodName(format(periodStart, 'MMMM y'))
       setStartBlockNumber(startBlock)
       setEndBlockNumber(endBlock)
-      checkPaymentStatus()
       processData(startPartnersResult, endPartnersResult)
+      checkPaymentStatus()
     })()
   }, [])
 
@@ -144,12 +144,29 @@ const Home = () => {
   const queueActions = async () => {
     setLoading(true)
 
-    // TODO: Confirm Safe has SNX_TOTAL_DISTRIBUTION available
-
-    const safeBatchSubmitter = await generateSafeBatchSubmitter();
     const erc20Interface = new ethers.utils.Interface([
       'function transfer(address recipient, uint256 amount)',
+      'function balanceOf(address account) view returns (uint256)'
     ])
+
+    // Confirm the Gnosis Safe has a sufficient balance
+    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    const snxContract = new ethers.Contract(SNX_TOKEN_ADDRESS, erc20Interface, provider);
+    const currentBalance = await snxContract.balanceOf(GNOSIS_SAFE_ADDRESS)
+    const parsedBalance = parseInt(ethers.utils.formatEther(currentBalance))
+    if(SNX_TOTAL_DISTRIBUTION > parsedBalance){
+      toast({
+        title: 'Insufficient Funds',
+        description: `The safe doesn't have enough SNX tokens to complete this payout.`,
+        status: 'error',
+        isClosable: true,
+      })
+      setLoading(false)
+      return
+    }
+
+    // Queue transactions
+    const safeBatchSubmitter = await generateSafeBatchSubmitter();
 
     for (let index = 0; index < partnersData.length; index++) {
       const partner = partnersData[index]
@@ -166,6 +183,7 @@ const Home = () => {
       }
     }
 
+    // Submit transactions
     try {
       const submitResult = await safeBatchSubmitter.submit()
       toast({
@@ -188,7 +206,7 @@ const Home = () => {
   }
 
   const checkPaymentStatus = async () => {
-    // TODO: Clean this up, add etherscan api key, make more reliable
+
     const safeBatchSubmitter = await generateSafeBatchSubmitter();
 
     let newStatus = 'none'
@@ -211,15 +229,16 @@ const Home = () => {
     } catch {}
 
     // Check if there's past transaction
-    const endpoint =
-      'https://api-rinkeby.etherscan.io/api?module=account&action=tokentx&contractaddress=0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c&address=0xee8C74634fc1590Ab7510a655F53159524ed0aC5&page=1&offset=10000&sort=desc'
-    //const endpoint = `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc`
+    const endpoint = `https://api${safeBatchSubmitter.network != "homestead" ? ('-' + safeBatchSubmitter.network) : ''}.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY ? '&apikey=' + process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY : ''}`
 
     const response = await fetch(endpoint)
     const data = await response.json()
+    
     if (
       data.result.some((r) => {
+        
         return partnersData.some((p) => {
+          
           return (
             r.value.toString() ==
               ethers.utils.parseEther(p.payout.toString()).toString() &&
@@ -227,7 +246,9 @@ const Home = () => {
               ethers.utils.getAddress(r.to),
             )
           )
+
         })
+
       })
     ) {
       newStatus = 'executed'
