@@ -6,6 +6,7 @@ import { Container, Heading, Button, useToast, Grid } from '@chakra-ui/react'
 import PartnersTable from '../components/PartnersTable'
 import Period from '../components/Period'
 import Status from '../components/Status'
+import Network from '../components/Network'
 
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
 import { format, startOfMonth, subMonths } from 'date-fns'
@@ -64,6 +65,19 @@ async function generateSafeBatchSubmitter(){
   return safeBatchSubmitter
 }
 
+function refreshOnNetworkChange(){
+  // The "any" network will allow spontaneous network changes
+  const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+  provider.on("network", (newNetwork, oldNetwork) => {
+      // When a Provider makes its initial connection, it emits a "network"
+      // event with a null oldNetwork along with the newNetwork. So, if the
+      // oldNetwork exists, it represents a changing network
+      if (oldNetwork) {
+          window.location.reload();
+      }
+  });
+}
+
 const Home = () => {
   const [partnersData, setPartnersData] = useState([])
   const [startBlockNumber, setStartBlockNumber] = useState(0)
@@ -74,6 +88,9 @@ const Home = () => {
   const toast = useToast()
 
   useEffect(() => {
+
+    refreshOnNetworkChange();
+
     ;(async () => {
       // Get block numbers corresponding to the start of this month and last month
       const tz_offset = new Date().getTimezoneOffset() * 60 * 1000
@@ -154,6 +171,7 @@ const Home = () => {
 
     // Confirm the Gnosis Safe has a sufficient balance
     const provider = new ethers.providers.Web3Provider(window.ethereum)
+    await provider.send("eth_requestAccounts", []);
     const snxContract = new ethers.Contract(SNX_TOKEN_ADDRESS, erc20Interface, provider);
     const currentBalance = await snxContract.balanceOf(GNOSIS_SAFE_ADDRESS)
     const parsedBalance = parseInt(ethers.utils.formatEther(currentBalance))
@@ -210,10 +228,12 @@ const Home = () => {
 
   const checkPaymentStatus = async () => {
 
-    const safeBatchSubmitter = await generateSafeBatchSubmitter();
-
     let newStatus = 'none'
+    let network = 'homestead'
+
     try {
+      const safeBatchSubmitter = await generateSafeBatchSubmitter();
+      network = safeBatchSubmitter.network
       // Check if there's a queued transaction with the same addresses to payout.
       const pendingTxns = await safeBatchSubmitter.service.getPendingTransactions(
         GNOSIS_SAFE_ADDRESS,
@@ -232,7 +252,7 @@ const Home = () => {
     } catch {}
 
     // Check if there's past transaction
-    const endpoint = `https://api${safeBatchSubmitter.network != "homestead" ? ('-' + safeBatchSubmitter.network) : ''}.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY ? '&apikey=' + process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY : ''}`
+    const endpoint = `https://api${network != "homestead" ? ('-' + network) : ''}.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY ? '&apikey=' + process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY : ''}`
 
     const response = await fetch(endpoint)
     const data = await response.json()
@@ -265,6 +285,7 @@ const Home = () => {
       <Head>
         <title>Exchange Partners Payout Tool</title>
       </Head>
+      <Network />
       <Container>
         <Heading as="h1" size="xl" mt={10} mb={6} textAlign="center">
           Exchange Partners Payout Tool

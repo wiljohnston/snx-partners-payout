@@ -36,6 +36,7 @@ const Period = ({periodName, startBlockNumber, endBlockNumber}) => {
             <Link
               href={`https://etherscan.io/block/${startBlockNumber}`}
               isExternal
+              borderBottom="1px rgba(255,255,255,0.66) dotted" borderRadius={1} _hover={{ textDecoration: "none", borderBottom: "1px rgba(255,255,255,0.9) dotted" }}
             >
               {startBlockNumber}
             </Link>{' '}
@@ -43,6 +44,7 @@ const Period = ({periodName, startBlockNumber, endBlockNumber}) => {
             <Link
               href={`https://etherscan.io/block/${endBlockNumber}`}
               isExternal
+              borderBottom="1px rgba(255,255,255,0.66) dotted" borderRadius={1} _hover={{ textDecoration: "none", borderBottom: "1px rgba(255,255,255,0.9) dotted" }}
             >
               {endBlockNumber}
             </Link>
