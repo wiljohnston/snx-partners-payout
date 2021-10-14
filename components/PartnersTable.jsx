@@ -1,4 +1,5 @@
 import {
+  Box,
   Text,
   Table,
   Thead,
@@ -6,11 +7,42 @@ import {
   Tr,
   Th,
   Td,
+  Tfoot,
+  Link
 } from '@chakra-ui/react'
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client'
+import { PARTNER_ADDRESSES } from '../config.js'
+import { useEffect, useState } from 'react'
+
+const snxClient = new ApolloClient({
+  uri:
+    'https://api.thegraph.com/subgraphs/name/synthetixio-team/synthetix-rates',
+  cache: new InMemoryCache(),
+})
 
 const PartnersTable = ({partnersData}) => {
+
+  const [snxPrice, setSnxPrice] = useState(0)
+
+  useEffect(()=>{
+    snxClient.query({
+      query: gql(`{
+        fifteenMinuteSNXPrices(orderBy: id, orderDirection: desc, first: 1) {
+          id
+          averagePrice
+        }
+      }`)
+    }).then(result => {
+      setSnxPrice(result.data.fifteenMinuteSNXPrices[0].averagePrice / 10**18)
+    })
+  }, [])
+
+  const totalSnxPayout = partnersData.reduce((acc, p) => {
+    return acc + p.payout
+  }, 0)
+
   return (
-        <Table variant="simple" mb={8}>
+        <Table variant="simple" mb={6}>
           <Thead>
             <Tr>
               <Th>Partner</Th>
@@ -22,7 +54,11 @@ const PartnersTable = ({partnersData}) => {
             {partnersData.map((partner) => {
               return (
                 <Tr key={partner.id}>
-                  <Td fontWeight="bold">{partner.id}</Td>
+                  <Td fontWeight="bold">
+                    <Link href={`https://etherscan.io/address/${PARTNER_ADDRESSES[partner.id]}`} isExternal borderBottom="1px rgba(255,255,255,0.66) dotted" borderRadius={1} _hover={{ textDecoration: "none", borderBottom: "1px rgba(255,255,255,0.9) dotted" }}>
+                      {partner.id}
+                    </Link>
+                  </Td>
                   <Td>
                     {partner.fees.toLocaleString('en-US', {
                       style: 'currency',
@@ -41,11 +77,69 @@ const PartnersTable = ({partnersData}) => {
                     {partner.payout.toLocaleString('en-US', {
                       maximumFractionDigits: 20,
                     })}
+                    {snxPrice && <Text
+                      d="block"
+                      fontSize="xs"
+                      opacity={0.66}
+                      fontWeight="semibold"
+                    >
+                      {(snxPrice * partner.payout).toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })}
+                    </Text>}
                   </Td>
                 </Tr>
               )
             })}
           </Tbody>
+          <Tfoot>
+    <Tr>
+      <Th></Th>
+      <Th>
+        <Box pt={2} pb={0.5}>
+          Totals
+        </Box>
+        <Text color="white" fontSize="md" letterSpacing={0} fontWeight="normal" mt={1}>
+          {partnersData.reduce((acc, p) => {
+            return acc + p.fees
+          }, 0).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          })}
+        </Text>
+          <Text
+            d="block"
+            fontSize="xs"
+            fontWeight="semibold"
+            mt={1}
+          >
+            100%
+          </Text>
+      </Th>
+      <Th isNumeric>
+        <Box pt={2} pb={0.5}>
+          &nbsp;
+        </Box>
+        <Text color="white" fontSize="md" letterSpacing={0} fontWeight="normal" mt={1}>
+        {totalSnxPayout.toLocaleString('en-US', {
+            maximumFractionDigits: 4,
+          })} SNX
+        </Text>
+          {snxPrice && <Text
+            d="block"
+            fontSize="xs"
+            fontWeight="semibold"
+            mt={1}
+          >
+          {(snxPrice * totalSnxPayout).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          })}
+        </Text>}
+      </Th>
+    </Tr>
+          </Tfoot>
         </Table>
   )
 }

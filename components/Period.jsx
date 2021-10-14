@@ -10,7 +10,7 @@ const Period = ({periodName, startBlockNumber, endBlockNumber}) => {
     return (
           <Box
           d="inline-block"
-          mb={4}
+          mb={5}
           borderRadius="md"
           background="gray.900"
           py={5}

@@ -14,7 +14,7 @@ const Status = ({status}) => {
           py={5}
           px={6}
           d="inline-block"
-          mb={4}
+          mb={5}
         >
           <Heading
             textTransform="uppercase"

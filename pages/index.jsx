@@ -103,9 +103,12 @@ const Home = () => {
       setStartBlockNumber(startBlock)
       setEndBlockNumber(endBlock)
       processData(startPartnersResult, endPartnersResult)
-      checkPaymentStatus()
     })()
   }, [])
+
+  useEffect(() => {
+    checkPaymentStatus()
+  }, [partnersData])
 
   const processData = (startPartnersResult, endPartnersResult) => {
     // Calculate fees for the period by taking the difference between the totals at start and end
