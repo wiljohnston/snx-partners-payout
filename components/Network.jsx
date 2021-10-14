@@ -20,7 +20,7 @@ const Connect = () => {
             position="fixed"
             top={4}
             right={4}
-            colorScheme="blue"
+            colorScheme={network == "mainnet" ? "blue" : "red"}
           >
             {network}
           </Badge>
