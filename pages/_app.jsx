@@ -1,9 +1,8 @@
-import type { AppProps } from 'next/app'
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react'
 import Fonts from '../components/fonts'
 import theme from '../styles/theme'
 
-function MyApp({ Component, pageProps }: AppProps) {
+function MyApp({ Component, pageProps }) {
   return (
     <ChakraProvider>
       <Fonts />
