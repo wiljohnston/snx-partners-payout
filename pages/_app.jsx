@@ -1,5 +1,5 @@
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react'
-import Fonts from '../components/fonts'
+import Fonts from '../components/Fonts'
 import theme from '../styles/theme'
 
 function MyApp({ Component, pageProps }) {
