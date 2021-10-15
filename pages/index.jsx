@@ -287,7 +287,7 @@ const Home = () => {
       </Head>
       <Network />
       <Container>
-        <Heading as="h1" size="xl" mt={10} mb={6} textAlign="center">
+        <Heading textTransform="uppercase" fontFamily="GT America" fontWeight={700} as="h1" size="xl" mt={10} mb={6} textAlign="center">
           Exchange Partners Payout Tool
         </Heading>
         <Grid templateColumns="repeat(2, 1fr)" gap={4}>
@@ -308,6 +308,9 @@ const Home = () => {
           mb={8}
           size="lg"
           isLoading={loading}
+          textTransform="uppercase" fontFamily="GT America"
+          letterSpacing={1}
+          fontWeight={400}
         >
           Queue Payouts
         </Button>

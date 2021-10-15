@@ -97,7 +97,7 @@ const PartnersTable = ({partnersData}) => {
     <Tr>
       <Th></Th>
       <Th>
-        <Box pt={2} pb={0.5}>
+        <Box pt={2} pb={0.5} color="white" opacity={0.9}>
           Totals
         </Box>
         <Text color="white" fontSize="md" letterSpacing={0} fontWeight="normal" mt={1}>
