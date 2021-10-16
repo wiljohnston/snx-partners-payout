@@ -59,7 +59,7 @@ const Home = () => {
 
         <Tabs isFitted>
           <TabList>
-            <Tab fontWeight={600}>Partners</Tab>
+            <Tab fontWeight={600}>Exchange Partners</Tab>
             <Tab fontWeight={600}>DAO Members</Tab>
             <Tab fontWeight={600}>Core Contributors</Tab>
           </TabList>
