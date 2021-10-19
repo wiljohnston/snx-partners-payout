@@ -10,6 +10,17 @@ import {
   Tfoot,
   Link,
 } from "@chakra-ui/react";
+import { ethers } from "ethers";
+import { WarningIcon } from "@chakra-ui/icons";
+
+function validateAddress(address) {
+  try {
+    ethers.utils.getAddress(address);
+  } catch {
+    return false;
+  }
+  return true;
+}
 
 const TransactionsTable = ({ transactions }) => {
   return (
@@ -26,7 +37,13 @@ const TransactionsTable = ({ transactions }) => {
           return (
             <Tr key={"t-" + i}>
               <Td fontWeight="bold" overflow="hidden">
-                <Text isTruncated maxWidth={280}>
+                {!validateAddress(transaction.address) && (
+                  <WarningIcon
+                    mr={2}
+                    style={{ transform: "translateY(-4.5px)" }}
+                  />
+                )}
+                <Text d="inline-block" isTruncated maxWidth={280}>
                   <Link
                     href={`https://etherscan.io/address/${transaction.address}`}
                     isExternal
