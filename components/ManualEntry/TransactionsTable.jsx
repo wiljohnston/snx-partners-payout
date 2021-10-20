@@ -9,6 +9,7 @@ import {
   Td,
   Tfoot,
   Link,
+  Tooltip,
 } from "@chakra-ui/react";
 import { ethers } from "ethers";
 import { WarningIcon } from "@chakra-ui/icons";
@@ -38,10 +39,12 @@ const TransactionsTable = ({ transactions }) => {
             <Tr key={"t-" + i}>
               <Td fontWeight="bold" overflow="hidden">
                 {!validateAddress(transaction.address) && (
-                  <WarningIcon
-                    mr={2}
-                    style={{ transform: "translateY(-4.5px)" }}
-                  />
+                  <Tooltip label="This is an invalid address">
+                    <WarningIcon
+                      mr={2}
+                      style={{ transform: "translateY(-4.5px)" }}
+                    />
+                  </Tooltip>
                 )}
                 <Text d="inline-block" isTruncated maxWidth={280}>
                   <Link
