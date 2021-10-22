@@ -1,21 +1,19 @@
-import { ChakraProvider, ColorModeScript, Text } from "@chakra-ui/react";
+import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
 import Fonts from "../components/Fonts";
+import Layout from "../components/layout";
 import theme from "../styles/theme";
+import { RecoilRoot } from "recoil";
 
 function MyApp({ Component, pageProps }) {
-  const noMetaMask = typeof web3 == "undefined";
-
   return (
     <ChakraProvider>
-      <Fonts />
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      {noMetaMask ? (
-        <Text textAlign="center" py={40} fontWeight="bold" fontSize="3xl">
-          Install MetaMask!
-        </Text>
-      ) : (
-        <Component {...pageProps} />
-      )}
+      <RecoilRoot>
+        <Fonts />
+        <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </RecoilRoot>
     </ChakraProvider>
   );
 }

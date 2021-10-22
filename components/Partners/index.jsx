@@ -6,6 +6,9 @@ import PartnersTable from "./PartnersTable";
 import Period from "./Period";
 import Status from "./Status";
 
+import { loadedGraph, loadedHistorical } from "../../store";
+import { useRecoilState } from "recoil";
+
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
 import { format, startOfMonth, subMonths } from "date-fns";
 import { ethers } from "ethers";
@@ -70,6 +73,8 @@ const Partners = () => {
   const [status, setStatus] = useState("none");
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const [, setLoadedGraph] = useRecoilState(loadedGraph);
+  const [, setLoadedHistorical] = useRecoilState(loadedHistorical);
 
   useEffect(() => {
     (async () => {
@@ -101,6 +106,7 @@ const Partners = () => {
       setStartBlockNumber(startBlock);
       setEndBlockNumber(endBlock);
       processData(startPartnersResult, endPartnersResult);
+      setLoadedGraph(true);
     })();
   }, []);
 
@@ -267,6 +273,7 @@ const Partners = () => {
     }
 
     setStatus(newStatus);
+    setLoadedHistorical(true);
   };
 
   return (

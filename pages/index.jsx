@@ -14,8 +14,6 @@ import {
 import Network from "../components/Network";
 import Partners from "../components/Partners";
 import ManualEntry from "../components/ManualEntry";
-import DaoMembers from "../components/DaoMembers";
-import CoreContributors from "../components/CoreContributors";
 
 import { ethers } from "ethers";
 
@@ -62,10 +60,6 @@ const Home = () => {
           <TabList>
             <Tab fontWeight={600}>Exchange Partners</Tab>
             <Tab fontWeight={600}>Manual Entry</Tab>
-            {/*
-            <Tab fontWeight={600}>DAO Members</Tab>
-            <Tab fontWeight={600}>Core Contributors</Tab>
-            */}
           </TabList>
 
           <TabPanels>
@@ -75,14 +69,6 @@ const Home = () => {
             <TabPanel px={0}>
               <ManualEntry />
             </TabPanel>
-            {/*
-            <TabPanel px={0}>
-              <DaoMembers />
-            </TabPanel>
-            <TabPanel px={0}>
-              <CoreContributors />
-            </TabPanel>
-            */}
           </TabPanels>
         </Tabs>
       </Container>
