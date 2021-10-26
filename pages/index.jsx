@@ -13,6 +13,7 @@ import {
 
 import Network from "../components/Network";
 import Partners from "../components/Partners";
+import CouncilMembers from "../components/CouncilMembers";
 import ManualEntry from "../components/ManualEntry";
 
 import { ethers } from "ethers";
@@ -59,12 +60,16 @@ const Home = () => {
         <Tabs isFitted>
           <TabList>
             <Tab fontWeight={600}>Exchange Partners</Tab>
+            <Tab fontWeight={600}>Council Members</Tab>
             <Tab fontWeight={600}>Manual Entry</Tab>
           </TabList>
 
           <TabPanels>
             <TabPanel px={0}>
               <Partners />
+            </TabPanel>
+            <TabPanel px={0}>
+              <CouncilMembers />
             </TabPanel>
             <TabPanel px={0}>
               <ManualEntry />

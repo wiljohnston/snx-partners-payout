@@ -18,7 +18,7 @@ import {
   GNOSIS_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   PARTNER_ADDRESSES,
-  SNX_TOTAL_DISTRIBUTION,
+  SNX_TOTAL_PARTNERS_DISTRIBUTION,
 } from "../../config.js";
 
 const snxQuery = (blockNumber) => `
@@ -138,7 +138,7 @@ const Partners = () => {
     result = result
       .map((r) => {
         r.percentage = r.fees / totalFees;
-        r.payout = SNX_TOTAL_DISTRIBUTION * r.percentage;
+        r.payout = SNX_TOTAL_PARTNERS_DISTRIBUTION * r.percentage;
         return r;
       })
       .sort((a, b) => {
@@ -166,7 +166,7 @@ const Partners = () => {
     );
     const currentBalance = await snxContract.balanceOf(GNOSIS_SAFE_ADDRESS);
     const parsedBalance = parseInt(ethers.utils.formatEther(currentBalance));
-    if (SNX_TOTAL_DISTRIBUTION > parsedBalance) {
+    if (SNX_TOTAL_PARTNERS_DISTRIBUTION > parsedBalance) {
       toast({
         title: "Insufficient Funds",
         description: `The safe doesn't have enough SNX tokens to complete this payout.`,
