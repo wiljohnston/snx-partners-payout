@@ -15,7 +15,7 @@ import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 
 import {
-  GNOSIS_SAFE_ADDRESS,
+  PARTNERS_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   PARTNER_ADDRESSES,
   SNX_TOTAL_PARTNERS_DISTRIBUTION,
@@ -59,7 +59,7 @@ async function generateSafeBatchSubmitter() {
   const safeBatchSubmitter = new SafeBatchSubmitter({
     network: network.name,
     signer,
-    safeAddress: GNOSIS_SAFE_ADDRESS,
+    safeAddress: PARTNERS_SAFE_ADDRESS,
   });
   await safeBatchSubmitter.init();
   return safeBatchSubmitter;
@@ -164,7 +164,7 @@ const Partners = () => {
       erc20Interface,
       provider
     );
-    const currentBalance = await snxContract.balanceOf(GNOSIS_SAFE_ADDRESS);
+    const currentBalance = await snxContract.balanceOf(PARTNERS_SAFE_ADDRESS);
     const parsedBalance = parseInt(ethers.utils.formatEther(currentBalance));
     if (SNX_TOTAL_PARTNERS_DISTRIBUTION > parsedBalance) {
       toast({
@@ -229,7 +229,7 @@ const Partners = () => {
       // Check if there's a queued transaction with the same addresses to payout.
       const pendingTxns =
         await safeBatchSubmitter.service.getPendingTransactions(
-          GNOSIS_SAFE_ADDRESS
+          PARTNERS_SAFE_ADDRESS
         );
       if (
         pendingTxns.results.some((t) => {
@@ -247,7 +247,7 @@ const Partners = () => {
     // Check if there's past transaction
     const endpoint = `https://api${
       network != "homestead" ? "-" + network : ""
-    }.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${GNOSIS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${
+    }.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${PARTNERS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${
       process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
         ? "&apikey=" + process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
         : ""
@@ -278,7 +278,7 @@ const Partners = () => {
 
   return (
     <div>
-      <Grid templateColumns="repeat(2, 1fr)" gap={4} pt={4}>
+      <Grid templateColumns="repeat(2, 1fr)" gap={3} pt={4}>
         <Period
           periodName={periodName}
           startBlockNumber={startBlockNumber}

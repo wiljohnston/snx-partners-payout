@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Box,
   Heading,
@@ -11,37 +10,8 @@ import {
   Th,
   Td,
 } from "@chakra-ui/react";
-import { ethers } from "ethers";
 
-const Council = ({ name, nftAddress, stipend }) => {
-  const [symbol, setSymbol] = useState("");
-  const [memberAddresses, setMemberAddresses] = useState([]);
-
-  useEffect(() => {
-    (async () => {
-      const erc721Interface = new ethers.utils.Interface([
-        "function symbol() view returns (string)",
-        "function totalSupply() view returns (uint256)",
-        "function ownerOf(uint256) view returns (address)",
-      ]);
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const nftContract = new ethers.Contract(
-        nftAddress,
-        erc721Interface,
-        provider
-      );
-
-      setSymbol(await nftContract.symbol());
-
-      const tokenCount = await nftContract.totalSupply();
-      let newMemberAddresses = [];
-      for (var i = 1; i <= tokenCount; i++) {
-        newMemberAddresses.push(await nftContract.ownerOf(i));
-      }
-      setMemberAddresses(newMemberAddresses);
-    })();
-  }, []);
-
+const Council = ({ name, symbol, stipend, nftAddress, members }) => {
   return (
     <Box>
       <Heading d="inline" size="lg" fontWeight="semibold">
@@ -72,7 +42,7 @@ const Council = ({ name, nftAddress, stipend }) => {
           </Tr>
         </Thead>
         <Tbody>
-          {memberAddresses.map((member, i) => {
+          {members.map((member, i) => {
             return (
               <Tr key={"member-" + i}>
                 <Td fontWeight="bold">

@@ -5,7 +5,7 @@ import TransactionsTable from "./TransactionsTable";
 import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
-  GNOSIS_SAFE_ADDRESS,
+  PARTNERS_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   SUSD_TOKEN_ADDRESS,
 } from "../../config.js";
@@ -18,7 +18,7 @@ async function generateSafeBatchSubmitter() {
   const safeBatchSubmitter = new SafeBatchSubmitter({
     network: network.name,
     signer,
-    safeAddress: GNOSIS_SAFE_ADDRESS,
+    safeAddress: PARTNERS_SAFE_ADDRESS,
   });
   await safeBatchSubmitter.init();
   return safeBatchSubmitter;
@@ -71,7 +71,9 @@ const ManualEntry = () => {
       erc20Interface,
       provider
     );
-    const currentSnxBalance = await snxContract.balanceOf(GNOSIS_SAFE_ADDRESS);
+    const currentSnxBalance = await snxContract.balanceOf(
+      PARTNERS_SAFE_ADDRESS
+    );
     const parsedSnxBalance = parseInt(
       ethers.utils.formatEther(currentSnxBalance)
     );
@@ -96,7 +98,7 @@ const ManualEntry = () => {
       provider
     );
     const currentSusdBalance = await susdContract.balanceOf(
-      GNOSIS_SAFE_ADDRESS
+      PARTNERS_SAFE_ADDRESS
     );
     const parsedSusdBalance = parseInt(
       ethers.utils.formatEther(currentSusdBalance)
