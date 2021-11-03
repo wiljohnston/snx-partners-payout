@@ -60,7 +60,9 @@ const CouncilMembers = () => {
         const tokenCount = await nftContract.totalSupply();
         let newMemberAddresses = [];
         for (var j = 1; j <= tokenCount; j++) {
-          newMemberAddresses.push(await nftContract.ownerOf(j));
+          newMemberAddresses.push(
+            ethers.utils.getAddress(await nftContract.ownerOf(j))
+          );
         }
 
         newPayouts[nftAddresses[i]] = {
