@@ -1,16 +1,29 @@
 import { useState, useEffect } from "react";
-import { Button, Box, Text, Code, Textarea, useToast } from "@chakra-ui/react";
+import {
+  Button,
+  Box,
+  Text,
+  Code,
+  Textarea,
+  useToast,
+  RadioGroup,
+  Stack,
+  Radio,
+  FormLabel,
+  Input,
+} from "@chakra-ui/react";
 import TransactionsTable from "./TransactionsTable";
 
 import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
   PARTNERS_SAFE_ADDRESS,
+  COUNCIL_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   SUSD_TOKEN_ADDRESS,
 } from "../../config.js";
 
-async function generateSafeBatchSubmitter() {
+async function generateSafeBatchSubmitter(safeAddress) {
   const provider = new ethers.providers.Web3Provider(window.ethereum);
   let signer = provider.getSigner();
   signer.address = await signer.getAddress();
@@ -18,7 +31,7 @@ async function generateSafeBatchSubmitter() {
   const safeBatchSubmitter = new SafeBatchSubmitter({
     network: network.name,
     signer,
-    safeAddress: PARTNERS_SAFE_ADDRESS,
+    safeAddress: safeAddress,
   });
   await safeBatchSubmitter.init();
   return safeBatchSubmitter;
@@ -28,11 +41,32 @@ const ManualEntry = () => {
   const [loading, setLoading] = useState(false);
   const [entry, setEntry] = useState("");
   const [transactions, setTransactions] = useState([]);
+  const [safeSelection, setSafeSelection] = useState("partners");
+  const [customSafeAddress, setCustomSafeAddress] = useState("");
   const toast = useToast();
 
   const handleInputChange = (e) => {
     const inputValue = e.target.value;
     setEntry(inputValue);
+  };
+
+  const getSafeAddress = () => {
+    if (safeSelection == "partners") {
+      return PARTNERS_SAFE_ADDRESS;
+    }
+    if (safeSelection == "council") {
+      return COUNCIL_SAFE_ADDRESS;
+    }
+    return ethers.utils.getAddress(customSafeAddress);
+  };
+
+  const isCustomSafeAddressValid = () => {
+    try {
+      ethers.utils.getAddress(customSafeAddress);
+    } catch {
+      return false;
+    }
+    return true;
   };
 
   useEffect(() => {
@@ -71,9 +105,7 @@ const ManualEntry = () => {
       erc20Interface,
       provider
     );
-    const currentSnxBalance = await snxContract.balanceOf(
-      PARTNERS_SAFE_ADDRESS
-    );
+    const currentSnxBalance = await snxContract.balanceOf(getSafeAddress());
     const parsedSnxBalance = parseInt(
       ethers.utils.formatEther(currentSnxBalance)
     );
@@ -97,9 +129,7 @@ const ManualEntry = () => {
       erc20Interface,
       provider
     );
-    const currentSusdBalance = await susdContract.balanceOf(
-      PARTNERS_SAFE_ADDRESS
-    );
+    const currentSusdBalance = await susdContract.balanceOf(getSafeAddress());
     const parsedSusdBalance = parseInt(
       ethers.utils.formatEther(currentSusdBalance)
     );
@@ -115,7 +145,9 @@ const ManualEntry = () => {
     }
 
     // Queue transactions
-    const safeBatchSubmitter = await generateSafeBatchSubmitter();
+    const safeBatchSubmitter = await generateSafeBatchSubmitter(
+      getSafeAddress()
+    );
 
     for (let index = 0; index < transactions.length; index++) {
       const transaction = transactions[index];
@@ -189,6 +221,34 @@ const ManualEntry = () => {
       {transactions.length ? (
         <>
           <TransactionsTable transactions={transactions} />
+          <Box pb={2} pt={7}>
+            <FormLabel opacity={0.66}>
+              Which Gnosis Safe would you like to use for these payouts?
+            </FormLabel>
+            <RadioGroup onChange={setSafeSelection} value={safeSelection}>
+              <Stack direction="row">
+                <Radio pr={5} value="partners">
+                  Partners Payout Safe
+                </Radio>
+                <Radio pr={5} value="council">
+                  Council Payout Safe
+                </Radio>
+                <Radio pr={5} value="custom">
+                  Custom Safe
+                </Radio>
+              </Stack>
+            </RadioGroup>
+            {safeSelection == "custom" && (
+              <Input
+                value={customSafeAddress}
+                onChange={(event) => setCustomSafeAddress(event.target.value)}
+                mt={3}
+                type="text"
+                placeholder="Enter the safe address..."
+                isInvalid={!isCustomSafeAddressValid()}
+              />
+            )}
+          </Box>
           <Button
             background="#00d1ff"
             width="100%"
@@ -202,6 +262,7 @@ const ManualEntry = () => {
             fontFamily="GT America"
             letterSpacing={1}
             fontWeight={400}
+            disabled={!isCustomSafeAddressValid() && safeSelection == "custom"}
           >
             Queue Payouts
           </Button>
