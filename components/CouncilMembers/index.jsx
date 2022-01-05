@@ -68,11 +68,7 @@ const CouncilMembers = () => {
         newPayouts[nftAddresses[i]] = {
           name: await nftContract.name(),
           symbol: await nftContract.symbol(),
-          stipend:
-            nftAddresses[i] == SPARTAN_COUNCIL_NFT_ADDRESS ||
-            nftAddresses[i] == TREASURY_COUNCIL_NFT_ADDRESS
-              ? 1000
-              : 500,
+          stipend: 1000,
           members: newMemberAddresses,
         };
       }
