@@ -159,6 +159,7 @@ const Partners = () => {
     // Confirm the Gnosis Safe has a sufficient balance
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
+
     const snxContract = new ethers.Contract(
       SNX_TOKEN_ADDRESS,
       erc20Interface,
