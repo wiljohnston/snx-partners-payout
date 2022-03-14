@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
-import { Button, Box, useToast } from "@chakra-ui/react";
+import {
+  Button,
+  Spinner,
+  Box,
+  Input,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+  useToast,
+  SimpleGrid,
+} from "@chakra-ui/react";
 import Council from "./Council";
-
+import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
 import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
@@ -27,20 +37,56 @@ async function generateSafeBatchSubmitter() {
   return safeBatchSubmitter;
 }
 
+const blocksQuery = (timestamp) => `
+{
+  blocks(first: 1, orderBy: timestamp, orderDirection: asc, where: {timestamp_gte: "${timestamp}"}) {
+    id
+    number
+    timestamp
+  }
+}
+`;
+const blocksClient = new ApolloClient({
+  uri: "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+  cache: new InMemoryCache(),
+});
+
 const CouncilMembers = () => {
   const [loading, setLoading] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [payouts, setPayouts] = useState({});
+  const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const [blockNumber, setBlockNumber] = useState(0);
+  const [providerUrl, setProviderUrl] = useState("");
   const toast = useToast();
 
   useEffect(() => {
     (async () => {
+      setLoadingMembers(true);
+      const result = await blocksClient.query({
+        query: gql(blocksQuery(new Date(date).getTime() / 1000)),
+      });
+      if (result.data.blocks[0]) {
+        setBlockNumber(parseInt(result.data.blocks[0].number));
+      } else {
+        alert("No block found at this date!");
+      }
+    })();
+  }, [date, providerUrl]);
+
+  useEffect(() => {
+    (async () => {
+      const blockTag = blockNumber == 0 ? "latest" : blockNumber;
       const erc721Interface = new ethers.utils.Interface([
         "function name() view returns (string)",
         "function symbol() view returns (string)",
         "function totalSupply() view returns (uint256)",
         "function ownerOf(uint256) view returns (address)",
       ]);
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+
+      const provider = providerUrl.length
+        ? new ethers.providers.JsonRpcProvider(providerUrl)
+        : new ethers.providers.Web3Provider(window.ethereum);
 
       const nftAddresses = [
         SPARTAN_COUNCIL_NFT_ADDRESS,
@@ -57,24 +103,27 @@ const CouncilMembers = () => {
           provider
         );
 
-        const tokenCount = await nftContract.totalSupply();
+        const tokenCount = await nftContract.totalSupply({
+          blockTag,
+        });
         let newMemberAddresses = [];
         for (var j = 1; j <= tokenCount; j++) {
           newMemberAddresses.push(
-            ethers.utils.getAddress(await nftContract.ownerOf(j))
+            ethers.utils.getAddress(await nftContract.ownerOf(j, { blockTag }))
           );
         }
 
         newPayouts[nftAddresses[i]] = {
-          name: await nftContract.name(),
-          symbol: await nftContract.symbol(),
-          stipend: 1000,
+          name: await nftContract.name({ blockTag }),
+          symbol: await nftContract.symbol({ blockTag }),
+          stipend: 2000,
           members: newMemberAddresses,
         };
       }
       setPayouts(newPayouts);
+      setLoadingMembers(false);
     })();
-  }, []);
+  }, [blockNumber]);
 
   const queueActions = async () => {
     setLoading(true);
@@ -150,25 +199,32 @@ const CouncilMembers = () => {
 
   return (
     <Box py={4}>
-      {Object.keys(payouts).map((nftAddress, i) => {
-        return (
-          <Council
-            key={"council-" + i}
-            nftAddress={nftAddress}
-            name={payouts[nftAddress].name}
-            symbol={payouts[nftAddress].symbol}
-            stipend={payouts[nftAddress].stipend}
-            members={payouts[nftAddress].members}
-          />
-        );
-      })}
+      {loadingMembers ? (
+        <Box textAlign="center">
+          <Spinner my="6" />
+        </Box>
+      ) : (
+        Object.keys(payouts).map((nftAddress, i) => {
+          return (
+            <Council
+              key={"council-" + i}
+              nftAddress={nftAddress}
+              name={payouts[nftAddress].name}
+              symbol={payouts[nftAddress].symbol}
+              stipend={payouts[nftAddress].stipend}
+              members={payouts[nftAddress].members}
+            />
+          );
+        })
+      )}
       <Button
         background="#00d1ff"
         width="100%"
         _hover={{ background: "#58e1ff" }}
         color="white"
         onClick={queueActions}
-        my={6}
+        mt={6}
+        mb={12}
         size="lg"
         isLoading={loading}
         textTransform="uppercase"
@@ -178,6 +234,35 @@ const CouncilMembers = () => {
       >
         Queue Payouts
       </Button>
+      <SimpleGrid columns="2" spacing="5">
+        <FormControl mb={4}>
+          <FormLabel htmlFor="date">
+            Show holders of Council NFTs on...
+          </FormLabel>
+          <Input
+            id="date"
+            size="sm"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+          />
+        </FormControl>
+        <FormControl mb={4}>
+          <FormLabel htmlFor="providerUrl">Enter a provider URL</FormLabel>
+          <Input
+            id="providerUrl"
+            size="sm"
+            type="text"
+            value={providerUrl}
+            placeholder="https://mainnet.infura.io/v3/InfuraKey"
+            onChange={(event) => setProviderUrl(event.target.value)}
+          />
+          <FormHelperText>
+            Enter the URL for a provider with an archival node to fetch
+            historical data.
+          </FormHelperText>
+        </FormControl>
+      </SimpleGrid>
     </Box>
   );
 };
