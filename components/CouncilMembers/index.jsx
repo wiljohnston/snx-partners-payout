@@ -21,6 +21,7 @@ import {
   AMBASSADORS_COUNCIL_NFT_ADDRESS,
   GRANTS_COUNCIL_NFT_ADDRESS,
   TREASURY_COUNCIL_NFT_ADDRESS,
+  CC_COUNCIL_NFT_ADDRESS,
 } from "../../config.js";
 
 async function generateSafeBatchSubmitter() {
@@ -93,6 +94,7 @@ const CouncilMembers = () => {
         TREASURY_COUNCIL_NFT_ADDRESS,
         GRANTS_COUNCIL_NFT_ADDRESS,
         AMBASSADORS_COUNCIL_NFT_ADDRESS,
+        CC_COUNCIL_NFT_ADDRESS,
       ];
 
       let newPayouts = {};
@@ -116,7 +118,7 @@ const CouncilMembers = () => {
         newPayouts[nftAddresses[i]] = {
           name: await nftContract.name({ blockTag }),
           symbol: await nftContract.symbol({ blockTag }),
-          stipend: 2000,
+          stipend: CC_COUNCIL_NFT_ADDRESS == nftAddresses[i] ? 1000 : 2000,
           members: newMemberAddresses,
         };
       }
