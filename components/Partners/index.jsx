@@ -4,9 +4,8 @@ import { Button, useToast, Grid } from "@chakra-ui/react";
 
 import PartnersTable from "./PartnersTable";
 import Period from "./Period";
-import Status from "./Status";
 
-import { loadedGraph, loadedHistorical } from "../../store";
+import { loadedGraph } from "../../store";
 import { useRecoilState } from "recoil";
 
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
@@ -31,8 +30,14 @@ const snxQuery = (blockNumber) => `
   }
 }
 `;
-const snxClient = new ApolloClient({
-  uri: "https://api.thegraph.com/subgraphs/name/synthetixio-team/synthetix-exchanger",
+
+const l1SnxClient = new ApolloClient({
+  uri: "https://api.thegraph.com/subgraphs/name/synthetixio-team/mainnet-main",
+  cache: new InMemoryCache(),
+});
+
+const l2SnxClient = new ApolloClient({
+  uri: "https://api.thegraph.com/subgraphs/name/synthetixio-team/optimism-main",
   cache: new InMemoryCache(),
 });
 
@@ -46,8 +51,13 @@ const blocksQuery = (timestamp) => `
 }
 `;
 
-const blocksClient = new ApolloClient({
+const l1BlocksClient = new ApolloClient({
   uri: "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+  cache: new InMemoryCache(),
+});
+
+const l2BlocksClient = new ApolloClient({
+  uri: "https://api.thegraph.com/subgraphs/name/noahlitvin/optimism-blocks",
   cache: new InMemoryCache(),
 });
 
@@ -67,67 +77,104 @@ async function generateSafeBatchSubmitter() {
 
 const Partners = () => {
   const [partnersData, setPartnersData] = useState([]);
-  const [startBlockNumber, setStartBlockNumber] = useState(0);
-  const [endBlockNumber, setEndBlockNumber] = useState(0);
+  const [l1StartBlockNumber, setL1StartBlockNumber] = useState(0);
+  const [l1EndBlockNumber, setL1EndBlockNumber] = useState(0);
+  const [l2StartBlockNumber, setL2StartBlockNumber] = useState(0);
+  const [l2EndBlockNumber, setL2EndBlockNumber] = useState(0);
   const [periodName, setPeriodName] = useState("");
-  const [status, setStatus] = useState("none");
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const [, setLoadedGraph] = useRecoilState(loadedGraph);
-  const [, setLoadedHistorical] = useRecoilState(loadedHistorical);
 
   useEffect(() => {
     (async () => {
       // Get block numbers corresponding to the start of this month and last month
       const tz_offset = new Date().getTimezoneOffset() * 60 * 1000;
-
       const periodEnd = startOfMonth(new Date());
-      const endBlockResult = await blocksClient.query({
-        query: gql(blocksQuery((periodEnd.getTime() - tz_offset) / 1000)),
-      });
-      const endBlock = endBlockResult.data.blocks[0].number;
-
       const periodStart = subMonths(periodEnd, 1);
-      const startBlockResult = await blocksClient.query({
-        query: gql(blocksQuery((periodStart.getTime() - tz_offset) / 1000)),
-      });
-      const startBlock = startBlockResult.data.blocks[0].number;
-
-      // Query partners data at these blocks
-      const startPartnersResult = await snxClient.query({
-        query: gql(snxQuery(startBlock)),
-      });
-      const endPartnersResult = await snxClient.query({
-        query: gql(snxQuery(endBlock)),
-      });
-
-      // Set state accordingly
       setPeriodName(format(periodStart, "MMMM y"));
-      setStartBlockNumber(startBlock);
-      setEndBlockNumber(endBlock);
-      processData(startPartnersResult, endPartnersResult);
+
+      const l1StartBlock = (
+        await l1BlocksClient.query({
+          query: gql(blocksQuery((periodStart.getTime() - tz_offset) / 1000)),
+        })
+      ).data.blocks[0].number;
+      const l1EndBlock = (
+        await l1BlocksClient.query({
+          query: gql(blocksQuery((periodEnd.getTime() - tz_offset) / 1000)),
+        })
+      ).data.blocks[0].number;
+      const l2StartBlock = (
+        await l2BlocksClient.query({
+          query: gql(blocksQuery((periodStart.getTime() - tz_offset) / 1000)),
+        })
+      ).data.blocks[0].number;
+      const l2EndBlock = (
+        await l2BlocksClient.query({
+          query: gql(blocksQuery((periodEnd.getTime() - tz_offset) / 1000)),
+        })
+      ).data.blocks[0].number;
+      setL1StartBlockNumber(l1StartBlock);
+      setL1EndBlockNumber(l1EndBlock);
+      setL2StartBlockNumber(l2StartBlock);
+      setL2EndBlockNumber(l2EndBlock);
+
+      const l1StartPartnersResult = await l1SnxClient.query({
+        query: gql(snxQuery(l1StartBlock)),
+      });
+      const l1EndPartnersResult = await l1SnxClient.query({
+        query: gql(snxQuery(l1EndBlock)),
+      });
+      const l2StartPartnersResult = await l2SnxClient.query({
+        query: gql(snxQuery(l2StartBlock)),
+      });
+      const l2EndPartnersResult = await l2SnxClient.query({
+        query: gql(snxQuery(l2EndBlock)),
+      });
+
+      processData(
+        l1StartPartnersResult,
+        l1EndPartnersResult,
+        l2StartPartnersResult,
+        l2EndPartnersResult
+      );
+
       setLoadedGraph(true);
     })();
   }, []);
 
-  useEffect(() => {
-    checkPaymentStatus();
-  }, [partnersData]);
-
-  const processData = (startPartnersResult, endPartnersResult) => {
+  const processData = (
+    l1StartPartnersResult,
+    l1EndPartnersResult,
+    l2StartPartnersResult,
+    l2EndPartnersResult
+  ) => {
     // Calculate fees for the period by taking the difference between the totals at start and end
     let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
-      const periodStartData = startPartnersResult.data.exchangePartners.filter(
+      const l1PeriodStartData =
+        l1StartPartnersResult.data.exchangePartners.filter(
+          (p) => p.id == id
+        )[0];
+      const l1PeriodEndData = l1EndPartnersResult.data.exchangePartners.filter(
         (p) => p.id == id
       )[0];
-      const periodEndData = endPartnersResult.data.exchangePartners.filter(
+      const l1Fees =
+        (l1PeriodEndData ? l1PeriodEndData.usdFees : 0) -
+        (l1PeriodStartData ? l1PeriodStartData.usdFees : 0);
+
+      const l2PeriodStartData =
+        l2StartPartnersResult.data.exchangePartners.filter(
+          (p) => p.id == id
+        )[0];
+      const l2PeriodEndData = l2EndPartnersResult.data.exchangePartners.filter(
         (p) => p.id == id
       )[0];
+      const l2Fees =
+        (l2PeriodEndData ? l2PeriodEndData.usdFees : 0) -
+        (l2PeriodStartData ? l2PeriodStartData.usdFees : 0);
       return {
         id: id,
-        fees:
-          periodEndData.usdFees -
-          (periodStartData ? periodStartData.usdFees : 0),
+        fees: l1Fees + l2Fees,
       };
     });
 
@@ -216,77 +263,18 @@ const Partners = () => {
       });
     } finally {
       setLoading(false);
-      checkPaymentStatus();
     }
-  };
-
-  const checkPaymentStatus = async () => {
-    let newStatus = "none";
-    let network = "homestead";
-
-    try {
-      const safeBatchSubmitter = await generateSafeBatchSubmitter();
-      network = safeBatchSubmitter.network;
-      // Check if there's a queued transaction with the same addresses to payout.
-      const pendingTxns =
-        await safeBatchSubmitter.service.getPendingTransactions(
-          PARTNERS_SAFE_ADDRESS
-        );
-      if (
-        pendingTxns.results.some((t) => {
-          const a = t.dataDecoded.parameters[0].valueDecoded.map(
-            (v) => v.dataDecoded.parameters[0].value
-          );
-          const b = Object.values(PARTNER_ADDRESSES);
-          return a.sort().join(",") === b.sort().join(",");
-        })
-      ) {
-        newStatus = "queued";
-      }
-    } catch {}
-
-    // Check if there's past transaction
-    const endpoint = `https://api${
-      network != "homestead" ? "-" + network : ""
-    }.etherscan.io/api?module=account&action=tokentx&contractaddress=${SNX_TOKEN_ADDRESS}&address=${PARTNERS_SAFE_ADDRESS}&page=1&offset=10000&sort=desc${
-      process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
-        ? "&apikey=" + process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
-        : ""
-    }`;
-
-    const response = await fetch(endpoint);
-    const data = await response.json();
-
-    if (
-      data.result.some((r) => {
-        return partnersData.some((p) => {
-          return (
-            r.value.toString() ==
-              ethers.utils.parseEther(p.payout.toString()).toString() &&
-            Object.values(PARTNER_ADDRESSES).includes(
-              ethers.utils.getAddress(r.to)
-            )
-          );
-        });
-      })
-    ) {
-      newStatus = "executed";
-    }
-
-    setStatus(newStatus);
-    setLoadedHistorical(true);
   };
 
   return (
     <div>
-      <Grid templateColumns="repeat(2, 1fr)" gap={3} pt={4}>
-        <Period
-          periodName={periodName}
-          startBlockNumber={startBlockNumber}
-          endBlockNumber={endBlockNumber}
-        />
-        <Status status={status} />
-      </Grid>
+      <Period
+        periodName={periodName}
+        l1StartBlockNumber={l1StartBlockNumber}
+        l1EndBlockNumber={l1EndBlockNumber}
+        l2StartBlockNumber={l2StartBlockNumber}
+        l2EndBlockNumber={l2EndBlockNumber}
+      />
       <PartnersTable partnersData={partnersData} />
       <Button
         background="#00d1ff"

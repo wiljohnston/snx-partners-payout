@@ -15,8 +15,7 @@ export default function Layout({ children }) {
     if (hasMetaMask) {
         const loaded1 = useRecoilValue(loadedGraph)
         const loaded2 = useRecoilValue(loadedConversion);
-        const loaded3 = useRecoilValue(loadedHistorical);
-        loading = !(loaded1 && loaded2 && loaded3)
+        loading = !(loaded1 && loaded2)
     } else {
         loading = false
     }
