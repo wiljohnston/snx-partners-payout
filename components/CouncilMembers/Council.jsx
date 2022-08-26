@@ -11,7 +11,7 @@ import {
   Td,
 } from "@chakra-ui/react";
 
-const Council = ({ name, symbol, stipend, nftAddress, members }) => {
+const Council = ({ name, symbol, stipend, nftAddress, members, layer }) => {
   return (
     <Box>
       <Heading d="inline" size="lg" fontWeight="semibold">
@@ -32,7 +32,7 @@ const Council = ({ name, symbol, stipend, nftAddress, members }) => {
         lineHeight="1.2"
         transform="translateY(-3px)"
       >
-        {symbol}
+        {symbol} L{layer}
       </Link>
       <Table variant="simple" mt={3} mb={12}>
         <Thead>

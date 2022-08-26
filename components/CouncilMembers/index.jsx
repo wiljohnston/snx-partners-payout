@@ -9,6 +9,7 @@ import {
   FormHelperText,
   useToast,
   SimpleGrid,
+  Text,
 } from "@chakra-ui/react";
 import Council from "./Council";
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
@@ -47,8 +48,13 @@ const blocksQuery = (timestamp) => `
   }
 }
 `;
-const blocksClient = new ApolloClient({
+const l1BlocksClient = new ApolloClient({
   uri: "https://api.thegraph.com/subgraphs/name/blocklytics/ethereum-blocks",
+  cache: new InMemoryCache(),
+});
+
+const l2BlocksClient = new ApolloClient({
+  uri: "https://api.thegraph.com/subgraphs/name/noahlitvin/optimism-blocks",
   cache: new InMemoryCache(),
 });
 
@@ -57,75 +63,105 @@ const CouncilMembers = () => {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [payouts, setPayouts] = useState({});
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
-  const [blockNumber, setBlockNumber] = useState(0);
-  const [providerUrl, setProviderUrl] = useState("");
+  const [l1blockNumber, setL1BlockNumber] = useState(0);
+  const [l2blockNumber, setL2BlockNumber] = useState(0);
+  const [infuraKey, setInfuraKey] = useState("");
   const toast = useToast();
 
   useEffect(() => {
     (async () => {
       setLoadingMembers(true);
-      const result = await blocksClient.query({
+      const l1result = await l1BlocksClient.query({
         query: gql(blocksQuery(new Date(date).getTime() / 1000)),
       });
-      if (result.data.blocks[0]) {
-        setBlockNumber(parseInt(result.data.blocks[0].number));
+      const l2result = await l2BlocksClient.query({
+        query: gql(blocksQuery(new Date(date).getTime() / 1000)),
+      });
+      if (l1result.data.blocks[0] && l2result.data.blocks[0]) {
+        setL1BlockNumber(parseInt(l1result.data.blocks[0].number));
+        setL2BlockNumber(parseInt(l2result.data.blocks[0].number));
       } else {
         alert("No block found at this date!");
       }
     })();
-  }, [date, providerUrl]);
+  }, [date, infuraKey]);
 
   useEffect(() => {
     (async () => {
-      const blockTag = blockNumber == 0 ? "latest" : blockNumber;
-      const erc721Interface = new ethers.utils.Interface([
-        "function name() view returns (string)",
-        "function symbol() view returns (string)",
-        "function totalSupply() view returns (uint256)",
-        "function ownerOf(uint256) view returns (address)",
-      ]);
+      if (infuraKey.length) {
+        const blockTag = (layer) => {
+          if (layer == 1) {
+            return l1blockNumber == 0 ? "latest" : l1blockNumber;
+          } else if (layer == 2) {
+            return l2blockNumber == 0 ? "latest" : l2blockNumber;
+          }
+        };
 
-      const provider = providerUrl.length
-        ? new ethers.providers.JsonRpcProvider(providerUrl)
-        : new ethers.providers.Web3Provider(window.ethereum);
+        const erc721Interface = new ethers.utils.Interface([
+          "function name() view returns (string)",
+          "function symbol() view returns (string)",
+          "function totalSupply() view returns (uint256)",
+          "function ownerOf(uint256) view returns (address)",
+        ]);
 
-      const nftAddresses = [
-        SPARTAN_COUNCIL_NFT_ADDRESS,
-        TREASURY_COUNCIL_NFT_ADDRESS,
-        GRANTS_COUNCIL_NFT_ADDRESS,
-        AMBASSADORS_COUNCIL_NFT_ADDRESS,
-        CC_COUNCIL_NFT_ADDRESS,
-      ];
-
-      let newPayouts = {};
-      for (var i = 0; i < nftAddresses.length; i++) {
-        const nftContract = new ethers.Contract(
-          nftAddresses[i],
-          erc721Interface,
-          provider
+        const l1Provider = new ethers.providers.JsonRpcProvider(
+          `https://mainnet.infura.io/v3/${infuraKey}`
+        );
+        const l2Provider = new ethers.providers.JsonRpcProvider(
+          `https://optimism-mainnet.infura.io/v3/${infuraKey}`
         );
 
-        const tokenCount = await nftContract.totalSupply({
-          blockTag,
-        });
-        let newMemberAddresses = [];
-        for (var j = 1; j <= tokenCount; j++) {
-          newMemberAddresses.push(
-            ethers.utils.getAddress(await nftContract.ownerOf(j, { blockTag }))
-          );
-        }
+        const nftAddresses = [
+          SPARTAN_COUNCIL_NFT_ADDRESS,
+          TREASURY_COUNCIL_NFT_ADDRESS,
+          GRANTS_COUNCIL_NFT_ADDRESS,
+          AMBASSADORS_COUNCIL_NFT_ADDRESS,
+          CC_COUNCIL_NFT_ADDRESS,
+        ];
 
-        newPayouts[nftAddresses[i]] = {
-          name: await nftContract.name({ blockTag }),
-          symbol: await nftContract.symbol({ blockTag }),
-          stipend: CC_COUNCIL_NFT_ADDRESS == nftAddresses[i] ? 1000 : 2000,
-          members: newMemberAddresses,
-        };
+        let newPayouts = {};
+        for (var i = 0; i < nftAddresses.length; i++) {
+          const layer = nftAddresses[i] == CC_COUNCIL_NFT_ADDRESS ? 1 : 2;
+
+          const nftContract = new ethers.Contract(
+            nftAddresses[i],
+            erc721Interface,
+            layer == 1 ? l1Provider : l2Provider
+          );
+
+          // No 'totalSupply' function on the new tokens....
+          // const tokenCount = await nftContract.totalSupply({
+          //   blockTag: blockTag(layer),
+          // });
+          // Let's assume no more than 50?
+          const tokenCount = 50;
+          let newMemberAddresses = [];
+          for (var j = 1; j <= tokenCount; j++) {
+            try {
+              const newAddress = ethers.utils.getAddress(
+                await nftContract.ownerOf(j, { blockTag: blockTag(layer) })
+              );
+              if (newAddress == "0x0000000000000000000000000000000000000000") {
+                break;
+              }
+              newMemberAddresses.push(newAddress);
+            } catch {
+              break;
+            }
+          }
+
+          newPayouts[nftAddresses[i]] = {
+            name: await nftContract.name({ blockTag: blockTag(layer) }),
+            symbol: await nftContract.symbol({ blockTag: blockTag(layer) }),
+            stipend: CC_COUNCIL_NFT_ADDRESS == nftAddresses[i] ? 1000 : 2000,
+            members: newMemberAddresses,
+          };
+        }
+        setPayouts(newPayouts);
+        setLoadingMembers(false);
       }
-      setPayouts(newPayouts);
-      setLoadingMembers(false);
     })();
-  }, [blockNumber]);
+  }, [l1blockNumber, l2blockNumber, infuraKey]);
 
   const queueActions = async () => {
     setLoading(true);
@@ -201,9 +237,12 @@ const CouncilMembers = () => {
 
   return (
     <Box py={4}>
-      {loadingMembers ? (
+      {loadingMembers || !infuraKey.length ? (
         <Box textAlign="center">
           <Spinner my="6" />
+          <Text fontSize="sm" mb="6" opacity="0.66">
+            Make sure you've entered an Infura API Key
+          </Text>
         </Box>
       ) : (
         Object.keys(payouts).map((nftAddress, i) => {
@@ -215,6 +254,7 @@ const CouncilMembers = () => {
               symbol={payouts[nftAddress].symbol}
               stipend={payouts[nftAddress].stipend}
               members={payouts[nftAddress].members}
+              layer={nftAddress == CC_COUNCIL_NFT_ADDRESS ? 1 : 2}
             />
           );
         })
@@ -250,18 +290,17 @@ const CouncilMembers = () => {
           />
         </FormControl>
         <FormControl mb={4}>
-          <FormLabel htmlFor="providerUrl">Enter a provider URL</FormLabel>
+          <FormLabel htmlFor="infuraKey">Enter an Infura API Key</FormLabel>
           <Input
-            id="providerUrl"
+            id="infuraKey"
             size="sm"
             type="text"
-            value={providerUrl}
-            placeholder="https://mainnet.infura.io/v3/InfuraKey"
-            onChange={(event) => setProviderUrl(event.target.value)}
+            value={infuraKey}
+            placeholder=""
+            onChange={(event) => setInfuraKey(event.target.value)}
           />
           <FormHelperText>
-            Enter the URL for a provider with an archival node to fetch
-            historical data.
+            Enter the Infura ID for an archival node to fetch historical data.
           </FormHelperText>
         </FormControl>
       </SimpleGrid>
