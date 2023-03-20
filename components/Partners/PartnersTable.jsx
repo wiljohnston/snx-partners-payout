@@ -88,7 +88,7 @@ const PartnersTable = ({ partnersData }) => {
                   opacity={0.66}
                   fontWeight="semibold"
                 >
-                  {partner.percentage * 100}%
+                  {partner.percentage ? `${partner.percentage * 100}%` : ""}
                 </Text>
               </Td>
               <Td isNumeric>

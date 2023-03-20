@@ -31,15 +31,6 @@ const snxQuery = (blockNumber) => `
 }
 `;
 
-const perpsV2Query = (blockNumber) => `
-{
-  frontends (block: {number: ${blockNumber}}) {
-    id
-    fees
-  }
-}
-`;
-
 const l1SnxClient = new ApolloClient({
   uri: "https://api.thegraph.com/subgraphs/name/synthetixio-team/mainnet-main",
   cache: new InMemoryCache(),
@@ -47,11 +38,6 @@ const l1SnxClient = new ApolloClient({
 
 const l2SnxClient = new ApolloClient({
   uri: "https://api.thegraph.com/subgraphs/name/synthetixio-team/optimism-main",
-  cache: new InMemoryCache(),
-});
-
-const perpsV2Client = new ApolloClient({
-  uri: "https://api.thegraph.com/subgraphs/name/synthetix-perps/perps",
   cache: new InMemoryCache(),
 });
 
@@ -145,20 +131,12 @@ const Partners = () => {
       const l2EndPartnersResult = await l2SnxClient.query({
         query: gql(snxQuery(l2EndBlock)),
       });
-      const perpsV2StartPartnersResult = await perpsV2Client.query({
-        query: gql(perpsV2Query(l2StartBlock)),
-      });
-      const perpsV2EndPartnersResult = await perpsV2Client.query({
-        query: gql(perpsV2Query(l2EndBlock)),
-      });
 
       processData(
         l1StartPartnersResult,
         l1EndPartnersResult,
         l2StartPartnersResult,
-        l2EndPartnersResult,
-        perpsV2StartPartnersResult,
-        perpsV2EndPartnersResult
+        l2EndPartnersResult
       );
 
       setLoadedGraph(true);
@@ -169,9 +147,7 @@ const Partners = () => {
     l1StartPartnersResult,
     l1EndPartnersResult,
     l2StartPartnersResult,
-    l2EndPartnersResult,
-    perpsV2StartPartnersResult,
-    perpsV2EndPartnersResult
+    l2EndPartnersResult
   ) => {
     // Calculate fees for the period by taking the difference between the totals at start and end
     let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
@@ -197,22 +173,9 @@ const Partners = () => {
         (l2PeriodEndData ? l2PeriodEndData.usdFees : 0) -
         (l2PeriodStartData ? l2PeriodStartData.usdFees : 0);
 
-      const perpsV2PeriodStartData =
-        perpsV2StartPartnersResult.data.frontends.filter(
-          (p) => p.id.toUpperCase() == id.toUpperCase()
-        )[0];
-      const perpsV2PeriodEndData =
-        perpsV2EndPartnersResult.data.frontends.filter(
-          (p) => p.id.toUpperCase() == id.toUpperCase()
-        )[0];
-      let perpsV2Fees =
-        (perpsV2PeriodEndData ? perpsV2PeriodEndData.fees : 0) -
-        (perpsV2PeriodStartData ? perpsV2PeriodStartData.fees : 0);
-      perpsV2Fees = perpsV2Fees / 10 ** 18;
-
       return {
         id: id,
-        fees: l1Fees + l2Fees + perpsV2Fees,
+        fees: l1Fees + l2Fees,
       };
     });
 
