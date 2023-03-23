@@ -16,7 +16,7 @@ import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
   PARTNERS_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
-  PARTNER_ADDRESSES,
+  PARTNER_ADDRESSES_L2,
   SNX_TOTAL_PARTNERS_DISTRIBUTION,
 } from "../../config.js";
 
@@ -152,7 +152,7 @@ const Partners = () => {
     snxPrice
   ) => {
     // Calculate fees for the period by taking the difference between the totals at start and end
-    let result = Object.keys(PARTNER_ADDRESSES).map((id) => {
+    let result = Object.keys(PARTNER_ADDRESSES_L2).map((id) => {
       const perpsV2PeriodStartData =
         perpsV2StartPartnersResult.data.frontends.filter(
           (p) => p.id.toUpperCase() == id.toUpperCase()
@@ -228,7 +228,7 @@ const Partners = () => {
       const partner = partnersData[index];
       if (partner.payout > 0) {
         const data = erc20Interface.encodeFunctionData("transfer", [
-          PARTNER_ADDRESSES[partner.id],
+          PARTNER_ADDRESSES_L2[partner.id],
           ethers.utils.parseEther(partner.payout.toString()),
         ]);
         await safeBatchSubmitter.appendTransaction({
@@ -271,7 +271,7 @@ const Partners = () => {
         l2StartBlockNumber={l2StartBlockNumber}
         l2EndBlockNumber={l2EndBlockNumber}
       />
-      <PartnersTable partnersData={partnersData} />
+      <PartnersTable layer={2} partnersData={partnersData} />
       <Button
         background="#00d1ff"
         width="100%"

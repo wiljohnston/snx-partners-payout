@@ -11,7 +11,7 @@ import {
   Link,
 } from "@chakra-ui/react";
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
-import { PARTNER_ADDRESSES } from "../../config.js";
+import { PARTNER_ADDRESSES_L1, PARTNER_ADDRESSES_L2 } from "../../config.js";
 import { useEffect, useState } from "react";
 
 import { loadedConversion } from "../../store";
@@ -22,9 +22,11 @@ const snxClient = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-const PartnersTable = ({ partnersData }) => {
+const PartnersTable = ({ layer, partnersData }) => {
   const [snxPrice, setSnxPrice] = useState(0);
   const [, setLoadedConversion] = useRecoilState(loadedConversion);
+  const PARTNER_ADDRESSES =
+    layer == 1 ? PARTNER_ADDRESSES_L1 : PARTNER_ADDRESSES_L2;
 
   useEffect(() => {
     snxClient
