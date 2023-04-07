@@ -14,7 +14,7 @@ import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 
 import {
-  PARTNERS_SAFE_ADDRESS,
+  L2_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   PARTNER_ADDRESSES_L2,
   SNX_TOTAL_PARTNERS_DISTRIBUTION,
@@ -67,7 +67,7 @@ async function generateSafeBatchSubmitter() {
   const safeBatchSubmitter = new SafeBatchSubmitter({
     network: network.name,
     signer,
-    safeAddress: PARTNERS_SAFE_ADDRESS,
+    safeAddress: L2_SAFE_ADDRESS,
   });
   await safeBatchSubmitter.init();
   return safeBatchSubmitter;
@@ -208,7 +208,7 @@ const Partners = () => {
       erc20Interface,
       provider
     );
-    const currentBalance = await snxContract.balanceOf(PARTNERS_SAFE_ADDRESS);
+    const currentBalance = await snxContract.balanceOf(L2_SAFE_ADDRESS);
     const parsedBalance = parseInt(ethers.utils.formatEther(currentBalance));
     if (SNX_TOTAL_PARTNERS_DISTRIBUTION > parsedBalance) {
       toast({

@@ -17,7 +17,7 @@ import TransactionsTable from "./TransactionsTable";
 import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
-  PARTNERS_SAFE_ADDRESS,
+  L1_SAFE_ADDRESS,
   COUNCIL_SAFE_ADDRESS,
   SNX_TOKEN_ADDRESS,
   SUSD_TOKEN_ADDRESS,
@@ -52,7 +52,7 @@ const ManualEntry = () => {
 
   const getSafeAddress = () => {
     if (safeSelection == "partners") {
-      return PARTNERS_SAFE_ADDRESS;
+      return L1_SAFE_ADDRESS;
     }
     if (safeSelection == "council") {
       return COUNCIL_SAFE_ADDRESS;
