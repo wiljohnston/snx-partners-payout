@@ -15,7 +15,7 @@ import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 
 import {
   L1_SAFE_ADDRESS,
-  SNX_TOKEN_ADDRESS,
+  L1_SNX_TOKEN_ADDRESS,
   PARTNER_ADDRESSES_L1,
   SNX_TOTAL_PARTNERS_DISTRIBUTION,
 } from "../../config.js";
@@ -209,7 +209,7 @@ const Partners = () => {
     await provider.send("eth_requestAccounts", []);
 
     const snxContract = new ethers.Contract(
-      SNX_TOKEN_ADDRESS,
+      L1_SNX_TOKEN_ADDRESS,
       erc20Interface,
       provider
     );
@@ -237,7 +237,7 @@ const Partners = () => {
           ethers.utils.parseEther(partner.payout.toString()),
         ]);
         await safeBatchSubmitter.appendTransaction({
-          to: SNX_TOKEN_ADDRESS,
+          to: L1_SNX_TOKEN_ADDRESS,
           data,
           force: false,
         });

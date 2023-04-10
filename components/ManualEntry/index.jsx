@@ -19,8 +19,8 @@ import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
   L1_SAFE_ADDRESS,
   COUNCIL_SAFE_ADDRESS,
-  SNX_TOKEN_ADDRESS,
-  SUSD_TOKEN_ADDRESS,
+  L1_SNX_TOKEN_ADDRESS,
+  L1_SUSD_TOKEN_ADDRESS,
 } from "../../config.js";
 
 async function generateSafeBatchSubmitter(safeAddress) {
@@ -101,7 +101,7 @@ const ManualEntry = () => {
       return acc + p.snx;
     }, 0);
     const snxContract = new ethers.Contract(
-      SNX_TOKEN_ADDRESS,
+      L1_SNX_TOKEN_ADDRESS,
       erc20Interface,
       provider
     );
@@ -125,7 +125,7 @@ const ManualEntry = () => {
       return acc + p.susd;
     }, 0);
     const susdContract = new ethers.Contract(
-      SNX_TOKEN_ADDRESS,
+      L1_SNX_TOKEN_ADDRESS,
       erc20Interface,
       provider
     );
@@ -159,7 +159,7 @@ const ManualEntry = () => {
           ethers.utils.parseEther(transaction.snx.toString()),
         ]);
         await safeBatchSubmitter.appendTransaction({
-          to: SNX_TOKEN_ADDRESS,
+          to: L1_SNX_TOKEN_ADDRESS,
           data: snxData,
           force: false,
         });
@@ -172,7 +172,7 @@ const ManualEntry = () => {
           ethers.utils.parseEther(transaction.susd.toString()),
         ]);
         await safeBatchSubmitter.appendTransaction({
-          to: SUSD_TOKEN_ADDRESS,
+          to: L1_SUSD_TOKEN_ADDRESS,
           data: susdData,
           force: false,
         });

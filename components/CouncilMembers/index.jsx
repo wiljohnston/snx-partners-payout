@@ -17,7 +17,7 @@ import { ethers } from "ethers";
 import SafeBatchSubmitter from "../../lib/SafeBatchSubmitter.js";
 import {
   COUNCIL_SAFE_ADDRESS,
-  SNX_TOKEN_ADDRESS,
+  L1_SNX_TOKEN_ADDRESS,
   SPARTAN_COUNCIL_NFT_ADDRESS,
   AMBASSADORS_COUNCIL_NFT_ADDRESS,
   GRANTS_COUNCIL_NFT_ADDRESS,
@@ -178,7 +178,7 @@ const CouncilMembers = () => {
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
     const snxContract = new ethers.Contract(
-      SNX_TOKEN_ADDRESS,
+      L1_SNX_TOKEN_ADDRESS,
       erc20Interface,
       provider
     );
@@ -204,7 +204,7 @@ const CouncilMembers = () => {
           ethers.utils.parseEther(Object.values(payouts)[i].stipend.toString()),
         ]);
         await safeBatchSubmitter.appendTransaction({
-          to: SNX_TOKEN_ADDRESS,
+          to: L1_SNX_TOKEN_ADDRESS,
           data,
           force: false,
         });
