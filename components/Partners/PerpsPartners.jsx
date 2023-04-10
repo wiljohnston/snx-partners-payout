@@ -64,8 +64,9 @@ async function generateSafeBatchSubmitter() {
   let signer = provider.getSigner();
   signer.address = await signer.getAddress();
   let network = await provider.getNetwork();
+  console.log(network);
   const safeBatchSubmitter = new SafeBatchSubmitter({
-    network: network.name,
+    network: "optimism",
     signer,
     safeAddress: L2_SAFE_ADDRESS,
   });
